@@ -178,11 +178,11 @@ Integrated in training script
 
 ```bash
 # Full training
-python robot_gym/scripts/train.py --task=dodo --num_envs 4096
+python -m robot_gym.scripts.train --task=dodo --num_envs 4096
 # Debug run
-python robot_gym/scripts/train.py --task=dodo --num_envs 512 --max_iterations 50
+python -m robot_gym.scripts.train --task=dodo --num_envs 512 --max_iterations 50
 # Play model
-python robot_gym/scripts/play.py --task=dodo
+python -m robot_gym.scripts.play --task=dodo
 ```
 
 ---
