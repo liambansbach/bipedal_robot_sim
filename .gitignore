@@ -1,3 +1,6 @@
+wandb/
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -5,6 +8,15 @@ __pycache__/
 
 # C extensions
 *.so
+
+# IDEs & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
 
 # Distribution / packaging
 .Python
