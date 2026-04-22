@@ -1,0 +1,257 @@
+import os
+import copy
+from datetime import datetime
+from types import SimpleNamespace
+from typing import Tuple, Type
+
+from rsl_rl.runners import OnPolicyRunner
+
+from robot_gym import ROBOT_GYM_ROOT_DIR
+from robot_gym.envs.base.base_task import BaseTask
+from robot_gym.envs.base.legged_robot_config import (
+    LeggedRobotCfg,
+    LeggedRobotCfgPPO,
+)
+
+from robot_gym.utils.helpers import (
+    get_args,
+    update_cfg_from_args,
+    class_to_dict,
+    get_load_path,
+    set_seed,
+)
+
+
+class TaskRegistry:
+    """
+    Central registry for environments and training configs.
+    """
+
+    def __init__(self):
+        self.task_classes: dict[str, Type[BaseTask]] = {}
+        self.env_cfgs: dict[str, LeggedRobotCfg] = {}
+        self.train_cfgs: dict[str, LeggedRobotCfgPPO] = {}
+
+    # --------------------------------------------------------------------------
+    # Registration
+    # --------------------------------------------------------------------------
+    def register(
+        self,
+        name: str,
+        task_class: Type[BaseTask],
+        env_cfg: LeggedRobotCfg,
+        train_cfg: LeggedRobotCfgPPO,
+    ):
+        self.task_classes[name] = task_class
+        self.env_cfgs[name] = env_cfg
+        self.train_cfgs[name] = train_cfg
+
+    # --------------------------------------------------------------------------
+    # Getters
+    # --------------------------------------------------------------------------
+    def get_task_class(self, name: str) -> Type[BaseTask]:
+        if name not in self.task_classes:
+            raise ValueError(f"Task '{name}' is not registered.")
+        return self.task_classes[name]
+
+    def get_cfgs(self, name: str) -> Tuple[LeggedRobotCfg, LeggedRobotCfgPPO]:
+        if name not in self.env_cfgs or name not in self.train_cfgs:
+            raise ValueError(f"Configs for task '{name}' not found.")
+
+        # IMPORTANT: deepcopy to avoid modifying registry defaults
+        env_cfg = copy.deepcopy(self.env_cfgs[name])
+        train_cfg = copy.deepcopy(self.train_cfgs[name])
+
+        # Sync seed
+        try:
+            env_cfg.seed = train_cfg.seed
+        except Exception:
+            pass
+
+        return env_cfg, train_cfg
+
+    # --------------------------------------------------------------------------
+    # Simulation Params (Genesis-specific)
+    # --------------------------------------------------------------------------
+    def _build_sim_params(self, env_cfg: LeggedRobotCfg) -> SimpleNamespace:
+        """
+        Convert cfg.sim into an object with attribute access.
+
+        Required because BaseTask expects:
+            self.sim_params.dt
+        """
+        sim_dict = class_to_dict(env_cfg.sim)
+        return SimpleNamespace(**sim_dict)
+
+    # --------------------------------------------------------------------------
+    # Environment creation
+    # --------------------------------------------------------------------------
+    def make_env(
+        self,
+        name: str,
+        args=None,
+        env_cfg: LeggedRobotCfg | None = None,
+    ) -> Tuple[BaseTask, LeggedRobotCfg]:
+        """ Creates an environment either from a registered name or from the provided config file.
+
+        Args:
+            name (string): Name of a registered env.
+            args (Args, optional): command line arguments. If None get_args() will be called. Defaults to None.
+            env_cfg (Dict, optional): Environment config file used to override the registered config. Defaults to None.
+
+        Raises:
+            ValueError: Error if no registered env corresponds to 'name' 
+
+        Returns:
+            The created environment
+            Dict: the corresponding config file
+        """
+
+        if args is None:
+            args = get_args()
+
+        task_class = self.get_task_class(name)
+
+        if env_cfg is None:
+            env_cfg, train_cfg = self.get_cfgs(name)
+        else:
+            env_cfg = copy.deepcopy(env_cfg)
+            train_cfg = None
+
+        # Apply CLI overrides
+        env_cfg, train_cfg = update_cfg_from_args(env_cfg, train_cfg, args)
+
+        # Seed handling
+        seed = None
+        if train_cfg is not None and hasattr(train_cfg, "seed"):
+            seed = train_cfg.seed
+        elif hasattr(env_cfg, "seed"):
+            seed = env_cfg.seed
+
+        if seed is not None:
+            set_seed(seed)
+
+        # Build Genesis-compatible sim params
+        sim_params = self._build_sim_params(env_cfg)
+
+        env = task_class(
+            cfg=env_cfg,
+            sim_params=sim_params,
+            sim_device=args.sim_device,
+            headless=args.headless,
+        )
+
+        return env, env_cfg
+
+    # --------------------------------------------------------------------------
+    # Algorithm runner creation
+    # --------------------------------------------------------------------------
+    def make_alg_runner(
+        self,
+        env: BaseTask,
+        name: str | None = None,
+        args=None,
+        train_cfg: LeggedRobotCfgPPO | None = None,
+        log_root: str | None = "default",
+    ) -> Tuple[OnPolicyRunner, LeggedRobotCfgPPO]:
+        """ Creates the training algorithm  either from a registered name or from the provided config file.
+
+        Args:
+            env (BaseTask): The environment to train on.
+            name (string, optional): Name of a registered env. If None, the config file will be used instead. Defaults to None.
+            args (Args, optional): command line arguments. If None get_args() will be called. Defaults to None.
+            train_cfg (Dict, optional): Training config file. If None 'name' will be used to get the config file. Defaults to None.
+            log_root (str, optional): Logging directory for wandb. Set to 'None' to avoid logging (at test time for example). 
+                                      Logs will be saved in <log_root>/<date_time>_<run_name>. Defaults to "default"=<path_to_LEGGED_GYM>/logs/<experiment_name>.
+
+        Raises:
+            ValueError: Error if neither 'name' or 'train_cfg' are provided
+            Warning: If both 'name' or 'train_cfg' are provided 'name' is ignored
+
+        Returns:
+            PPO: The created algorithm
+            Dict: the corresponding config file
+        """
+
+        if args is None:
+            args = get_args()
+
+        # Load config
+        if train_cfg is None:
+            if name is None:
+                raise ValueError("Either 'name' or 'train_cfg' must be provided.")
+            _, train_cfg = self.get_cfgs(name)
+        else:
+            train_cfg = copy.deepcopy(train_cfg)
+            if name is not None:
+                print(f"'train_cfg' provided -> ignoring 'name={name}'")
+
+        # Apply CLI overrides
+        _, train_cfg = update_cfg_from_args(None, train_cfg, args)
+
+        # Logging setup
+        if log_root == "default":
+            log_root = os.path.join(
+                ROBOT_GYM_ROOT_DIR,
+                "logs",
+                train_cfg.runner.experiment_name,
+            )
+            log_dir = os.path.join(
+                log_root,
+                datetime.now().strftime("%b%d_%H-%M-%S")
+                + "_"
+                + train_cfg.runner.run_name,
+            )
+        elif log_root is None:
+            log_dir = None
+        else:
+            log_dir = os.path.join(
+                log_root,
+                datetime.now().strftime("%b%d_%H-%M-%S")
+                + "_"
+                + train_cfg.runner.run_name,
+            )
+
+        # Convert config to dict for rsl_rl
+        train_cfg_dict = class_to_dict(train_cfg)
+        
+        # rsl_rl expects several keys on top-level, while our current config
+        # stores them inside runner (Unitree-style).
+        if "runner" in train_cfg_dict:
+            runner_cfg = train_cfg_dict["runner"]
+
+            if "num_steps_per_env" not in train_cfg_dict and "num_steps_per_env" in runner_cfg:
+                train_cfg_dict["num_steps_per_env"] = runner_cfg["num_steps_per_env"]
+
+            if "save_interval" not in train_cfg_dict and "save_interval" in runner_cfg:
+                train_cfg_dict["save_interval"] = runner_cfg["save_interval"]
+
+        # keep backward-compatible defaults
+        if "empirical_normalization" not in train_cfg_dict:
+            train_cfg_dict["empirical_normalization"] = True
+
+        runner = OnPolicyRunner(
+            env=env,
+            train_cfg=train_cfg_dict,
+            log_dir=log_dir,
+            device=args.rl_device,
+        )
+
+        # Resume training
+        if train_cfg.runner.resume:
+            if log_root is None:
+                raise ValueError("Cannot resume when log_root is None.")
+
+            resume_path = get_load_path(
+                log_root,
+                load_run=train_cfg.runner.load_run,
+                checkpoint=train_cfg.runner.checkpoint,
+            )
+            print(f"Loading model from: {resume_path}")
+            runner.load(resume_path)
+
+        return runner, train_cfg
+
+
+#global task registry
+task_registry = TaskRegistry()
