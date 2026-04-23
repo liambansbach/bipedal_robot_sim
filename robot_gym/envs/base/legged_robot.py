@@ -983,11 +983,7 @@ class LeggedRobot(BaseTask):
         return torch.exp(-ang_vel_error/self.cfg.rewards.tracking_sigma)
 
     def _reward_feet_air_time(self):
-        """
-        Reward long swing phases.
-        Uses Genesis-based binary foot contacts from self.foot_contacts.
-        Reward is only given on the first touchdown after a swing phase.
-        """
+        # Reward for long swing phases, i.e. for feet being in the air for a long time before touchdown.
         contact = self.foot_contacts                     # (N, num_feet), bool
         contact_filt = torch.logical_or(contact, self.prev_foot_contacts)
 
@@ -1012,9 +1008,10 @@ class LeggedRobot(BaseTask):
         return rew_air_time
         
     def _reward_stand_still(self):
-        stand_mask = (torch.norm(self.commands, dim=1) < 0.1).float()
+        # Reward for standing still (zero velocity commands)
+        stand_mask = (torch.norm(self.commands[:, :2], dim=1) < 0.1).float()
 
-        pos_err = torch.sum((self.dof_pos - self.default_dof_pos) ** 2, dim=1)
+        pos_err = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
         vel_err = torch.sum(torch.abs(self.dof_vel), dim=1)
 
-        return (pos_err + 0.3 * vel_err) * stand_mask
+        return (pos_err + 0.1 * vel_err) * stand_mask

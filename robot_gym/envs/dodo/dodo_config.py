@@ -56,9 +56,9 @@ class DodoCfg(LeggedRobotCfg):
         resampling_time = 10.0
 
         class ranges(LeggedRobotCfg.commands.ranges):
-            lin_vel_x = [0.0, 0.8]
+            lin_vel_x = [-0.3, 1.0]
             lin_vel_y = [-0.3, 0.3]
-            ang_vel_yaw = [-0.5, 0.5]
+            ang_vel_yaw = [-0.75, 0.75]
 
     class control(LeggedRobotCfg.control):
         control_type = "P"
@@ -158,12 +158,12 @@ class DodoCfg(LeggedRobotCfg):
         class scales(LeggedRobotCfg.rewards.scales):
             # --- tracking ---
             tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
+            tracking_ang_vel = 0.6
 
             # --- general stability penalties from base ---
             lin_vel_z = -0.1
             ang_vel_xy = -0.0
-            orientation = -0.5
+            orientation = -0.7
             base_height = -5.0
 
             # --- smoothness / effort ---
@@ -176,17 +176,17 @@ class DodoCfg(LeggedRobotCfg):
             termination = -50.0
             dof_pos_limits = -1.0
             dof_vel_limits = -0.0
-            torque_limits = -0.1
+            torque_limits = -0.5
 
             # --- gait / base rewards ---
             feet_air_time = 0.0
-            stand_still = -0.75
+            stand_still = -1.5
 
             # --- dodo-specific rewards from DodoEnv ---
             forward_torso_pitch = 0.2
             foot_swing_clearance = 0.3
             flat_feet = 0.1
-            hip_abduction_penalty = -0.2
+            hip_abduction_penalty = -0.4
             survive = 0.01
 
             # keep unsupported / unused base reward names disabled
