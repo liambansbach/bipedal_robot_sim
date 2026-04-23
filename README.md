@@ -207,7 +207,17 @@ python -m robot_gym.scripts.play --task=dodo
 
 ## 🔮 Future Work
 
+This pipeline is still at an early stage and will be extended from time to time with the following functionalities:
+
 - sim2real (ROS2)
 - domain randomization
 - curriculum learning
 - advanced terrain
+
+---
+
+## Contact
+
+If you encounter any issues, feel free to contact me:
+
+mail: liam.bansbach@tum.de
