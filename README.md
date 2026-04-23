@@ -24,7 +24,7 @@ It is inspired by the structure of Unitree RL pipelines but fully adapted to:
 ---
 ## Results 👀
 
-Following Results were achieved using following setup:
+Following Results were achieved using this setup:
 - Intel Core i5-13600K (14 cores, 20 threads)
 - 32 GB RAM (DDR5 - 6000 MT/s)
 - NVIDIA GeForce RTX 4070 Ti
