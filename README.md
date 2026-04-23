@@ -24,6 +24,12 @@ It is inspired by the structure of Unitree RL pipelines but fully adapted to:
 ---
 ## Results 👀
 
+Following Results were achieved using following setup:
+- Intel Core i5-13600K (14 cores, 20 threads)
+- 32 GB RAM (DDR5 - 6000 MT/s)
+- NVIDIA GeForce RTX 4070 Ti
+- 4096 Envs, 1500 iterations -> runtime: 1h
+
 https://github.com/user-attachments/assets/f1c91115-6a6f-4f39-b26c-d79e13601c11
 
 https://github.com/user-attachments/assets/1b0dcc8c-5585-444f-bbc5-e64916269f7c
@@ -68,10 +74,11 @@ ressources/robots/
 ## ⚙️ Installation
 
 ### 1. Clone
+SSH example:
 
 ```bash
-git clone <your-repo>
-cd <your-repo>
+git clone git@github.com:liambansbach/bipedal_robot_sim.git
+cd bipedal_robot_sim
 ```
 
 ### 2. Setup environment
