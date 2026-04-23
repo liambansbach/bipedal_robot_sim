@@ -39,6 +39,7 @@ Copy this folder to:
 
 ```text
 logs/<experiment_name>/<run_name>/
+```
 
 For example:
 
@@ -50,7 +51,7 @@ For example:
 
 ```bash
 logs/
-└── dodo_walking_test/
+└── dodo_walking_policy/
     └── pretrained/
         ├── model_final.pt
 ```
@@ -60,7 +61,7 @@ logs/
 ```bash
 python -m robot_gym.scripts.play \
     --task dodo \
-    --experiment_name dodo_walking_test \
+    --experiment_name dodo_walking_policy \
     --load_run pretrained
 ```
 
@@ -81,7 +82,7 @@ logs/<experiment_name>/<run_name>/model_*.pt
 
 You also have to make sure, that the "dodo" task is registered in
 
-```bash
+```text
 envs/__init__.py
 ```
 
