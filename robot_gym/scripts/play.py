@@ -29,7 +29,7 @@ def play(args):
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
     # ----------------------------------------------------------------------
-    envs_to_visualize = 1 # define how many parallel envs to visualize (keep it low to reduce fps impact)
+    envs_to_visualize = 3 # define how many parallel envs to visualize (keep it low to reduce fps impact)
 
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, envs_to_visualize)
 
@@ -44,6 +44,10 @@ def play(args):
     env_cfg.domain_rand.push_robots = True
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
+
+    # env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
+    # env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
+    # env_cfg.commands.ranges.ang_vel_yaw = [0.0, 0.0]
     
     # Optional viewer/debug settings for play mode
     env_cfg.viewer.visualize_foot_contacts = False
