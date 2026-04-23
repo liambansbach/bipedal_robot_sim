@@ -34,6 +34,7 @@ It is inspired by the structure of Unitree RL pipelines but fully adapted to:
 
 ## 📁 Project Structure
 
+```text
 robot_gym/
 │
 ├── envs/
@@ -53,6 +54,7 @@ robot_gym/
 │
 logs/
 ressources/robots/
+```
 
 ---
 
