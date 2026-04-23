@@ -166,6 +166,8 @@ No manual joint mapping required.
 
 Implemented via URDFReader
 
+You can easily use your own URDF robot file for training your own locomotion policy. Just make sure that its consistent with the provided pipeline and that the URDF is optimized. Optimizing can include "simplifying collisions", by using collision-boxes or cylinders instead of the actual meshes. This will reduce training time by a lot.
+
 ### 📊 Logging
 
 - Weights & Biases integration
