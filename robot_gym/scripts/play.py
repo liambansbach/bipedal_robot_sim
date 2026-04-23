@@ -4,6 +4,21 @@ from robot_gym import ROBOT_GYM_ROOT_DIR
 from robot_gym.envs import *  # noqa: F401,F403 -> ensures task registration
 from robot_gym.utils import get_args, export_policy_as_jit, task_registry
 
+"""
+Example play command (command line call) with all arguments specified:
+
+    python -m robot_gym.scripts.play \
+        --task dodo \                              -> Task name defined in task_registry envs/__init__.py
+        --experiment_name daimao_walking \         -> Name of the experiment (used to locate logs directory).
+        --run_name run_01 \                        -> Name of the run. Overrides config file if provided.
+        --load_run daimao_walking \                -> Name of the run to load. If -1: will load the last run. Overrides config file if provided.
+        --checkpoint -1 \                          -> Saved model checkpoint number. If -1: will load the last checkpoint.
+        --rl_device cuda:0 \                       -> Device used for inference (cpu, cuda, cuda:0, etc..)
+        --headless                                 -> Force display off (no rendering). Usually disabled for visualization.
+
+Not all arguments are required. A simple call could look like this:
+    python -m robot_gym.scripts.play --task dodo --experiment_name dodo_walking_test
+"""
 
 EXPORT_POLICY = True
 
@@ -19,7 +34,7 @@ def play(args):
     env_cfg.terrain.curriculum = False
     env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = False
-    env_cfg.domain_rand.push_robots = False
+    env_cfg.domain_rand.push_robots = True
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
 
@@ -70,7 +85,7 @@ def play(args):
     # ----------------------------------------------------------------------
     for _ in range(10 * int(env.max_episode_length)):
         actions = policy(obs.detach())
-        obs, _, rews, dones, infos = env.step(actions.detach())
+        obs, rews, dones, infos = env.step(actions.detach())
 
 
 if __name__ == "__main__":
