@@ -104,6 +104,10 @@ class LeggedRobot(BaseTask):
 
         self.compute_observations() # in some cases a simulation step might be required to refresh some obs (for example body positions)
 
+        if getattr(self.cfg.viewer, "visualize_velocity_arrows", False):
+            if self.common_step_counter % 1 == 0: # maybe add some throttling here if the visualization causes lag
+                self._update_velocity_arrows() 
+
         self.last_actions[:] = self.actions[:]
         self.last_dof_vel[:] = self.dof_vel[:]
 
@@ -353,47 +357,6 @@ class LeggedRobot(BaseTask):
         # fallen if either condition is met
         fallen = too_low | bad_orientation
         return fallen
-
-    # def _process_dof_props(self, props, env_id):
-    #     """ Callback allowing to store/change/randomize the DOF properties of each environment.
-    #         Called During environment creation.
-    #         Base behavior: stores position, velocity and target limits defined in the URDF
-
-    #     Args:
-    #         props (numpy.array): Properties of each DOF of the asset
-    #         env_id (int): Environment id
-
-    #     Returns:
-    #         [numpy.array]: Modified DOF properties
-    #     """
-    #     if env_id==0:
-    #         self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
-    #         self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-    #         self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-    #         for i in range(len(props)):
-    #             self.dof_pos_limits[i, 0] = props["lower"][i].item()
-    #             self.dof_pos_limits[i, 1] = props["upper"][i].item()
-    #             self.dof_vel_limits[i] = props["velocity"][i].item()
-    #             self.torque_limits[i] = props["effort"][i].item()
-    #             # soft limits
-    #             m = (self.dof_pos_limits[i, 0] + self.dof_pos_limits[i, 1]) / 2
-    #             r = self.dof_pos_limits[i, 1] - self.dof_pos_limits[i, 0]
-    #             self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
-    #             self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
-    #     return props
-
-    # def _process_rigid_body_props(self, props, env_id):
-    #     # if env_id==0:
-    #     #     sum = 0
-    #     #     for i, p in enumerate(props):
-    #     #         sum += p.mass
-    #     #         print(f"Mass of body {i}: {p.mass} (before randomization)")
-    #     #     print(f"Total mass {sum} (before randomization)")
-    #     # randomize base mass
-    #     if self.cfg.domain_rand.randomize_base_mass:
-    #         rng = self.cfg.domain_rand.added_mass_range
-    #         props[0].mass += np.random.uniform(rng[0], rng[1])
-    #     return props
     
     def _post_physics_step_callback(self):
         """ Callback called before computing terminations, rewards, and observations
@@ -594,6 +557,10 @@ class LeggedRobot(BaseTask):
 
         self.p_gains = self.base_p_gains.clone()
         self.d_gains = self.base_d_gains.clone()
+
+        # objects for debug visualization (velocity arrows), one pair per rendered env
+        self._cmd_vel_arrows = {}
+        self._base_vel_arrows = {}
         
         logging.info(f"Initialized buffers: num_envs={N}, num_dof={D}, num_actions={A}, num_commands={C}")
 
@@ -885,6 +852,72 @@ class LeggedRobot(BaseTask):
 
         self.cfg.domain_rand.push_interval = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
 
+    def _update_velocity_arrows(self):
+        if self.headless:
+            return
+        if not getattr(self.cfg.viewer, "visualize_velocity_arrows", False):
+            return
+
+        scale = float(getattr(self.cfg.viewer, "velocity_arrow_scale", 0.5))
+        radius = float(getattr(self.cfg.viewer, "velocity_arrow_radius", 0.01))
+
+        ref_envs = getattr(self.cfg.viewer, "ref_env", [0])
+        if ref_envs is None:
+            ref_envs = [0]
+
+        for env_id in ref_envs:
+            # skip invalid env ids safely
+            if env_id < 0 or env_id >= self.num_envs:
+                continue
+
+            base_pos = self.base_pos[env_id].detach().cpu().numpy().copy()
+            base_pos[2] += 0.2
+
+            # commanded planar velocity in body frame
+            cmd_body = self.commands[env_id, :3].detach().cpu().numpy().copy()
+            cmd_vec_body = np.array([cmd_body[0], cmd_body[1], 0.0], dtype=np.float32)
+
+            # actual base linear velocity in body frame
+            vel_body = self.base_lin_vel[env_id].detach().cpu().numpy().copy()
+            vel_vec_body = np.array([vel_body[0], vel_body[1], 0.0], dtype=np.float32)
+
+            quat = self.base_quat[env_id:env_id + 1]
+
+            cmd_vec_world = transform_by_quat(
+                torch.from_numpy(cmd_vec_body).to(self.device).unsqueeze(0),
+                quat
+            )[0].detach().cpu().numpy() * scale
+
+            vel_vec_world = transform_by_quat(
+                torch.from_numpy(vel_vec_body).to(self.device).unsqueeze(0),
+                quat
+            )[0].detach().cpu().numpy() * scale
+
+            # clear old arrows for this env
+            if env_id in self._cmd_vel_arrows and self._cmd_vel_arrows[env_id] is not None:
+                self.sim.clear_debug_object(self._cmd_vel_arrows[env_id])
+                self._cmd_vel_arrows[env_id] = None
+
+            if env_id in self._base_vel_arrows and self._base_vel_arrows[env_id] is not None:
+                self.sim.clear_debug_object(self._base_vel_arrows[env_id])
+                self._base_vel_arrows[env_id] = None
+
+            # draw new arrows for this env
+            # commanded = blue
+            self._cmd_vel_arrows[env_id] = self.sim.draw_debug_arrow(
+                pos=base_pos,
+                vec=cmd_vec_world,
+                radius=radius,
+                color=(0.0, 0.0, 1.0, 0.8),
+            )
+
+            # actual = green
+            self._base_vel_arrows[env_id] = self.sim.draw_debug_arrow(
+                pos=base_pos + np.array([0.0, 0.0, 0.0], dtype=np.float32),
+                vec=vel_vec_world,
+                radius=radius,
+                color=(0.0, 1.0, 0.0, 0.8),
+            )
 
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):

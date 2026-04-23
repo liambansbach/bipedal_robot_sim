@@ -141,6 +141,11 @@ class LeggedRobotCfg(BaseConfig):
         show_world_frame = True
         visualize_foot_contacts = False
 
+        # velocity vectors for debugging:
+        visualize_velocity_arrows = False
+        velocity_arrow_scale = 0.6
+        velocity_arrow_radius = 0.03
+
     class sim:
         dt =  0.005
         substeps = 2

@@ -29,17 +29,26 @@ def play(args):
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
     # ----------------------------------------------------------------------
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 100)
+    envs_to_visualize = 1 # define how many parallel envs to visualize (keep it low to reduce fps impact)
 
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, envs_to_visualize)
+
+    # disable curriculum for play mode
     env_cfg.terrain.curriculum = False
+
+    # noise settings for eval
     env_cfg.noise.add_noise = False
+
+    # Domain randomization settings for eval
     env_cfg.domain_rand.randomize_friction = False
     env_cfg.domain_rand.push_robots = True
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
-
+    
     # Optional viewer/debug settings for play mode
-    env_cfg.viewer.visualize_foot_contacts = True
+    env_cfg.viewer.visualize_foot_contacts = False
+    env_cfg.viewer.visualize_velocity_arrows = True
+    env_cfg.viewer.ref_env = list(range(envs_to_visualize))
 
     # ----------------------------------------------------------------------
     # Prepare environment
