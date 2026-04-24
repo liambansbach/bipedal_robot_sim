@@ -63,10 +63,14 @@ robot_gym/
 │ ├── helpers.py
 │ ├── logger.py
 │ ├── math.py
+│ ├── terrain.py
 │ ├── urdf_reader.py
 │
+├── ressources/
+│ ├── robots/
+│ ├── pretrained/
 logs/
-ressources/robots/
+
 ```
 
 -> The main structure and many design choices are based on this repository: https://github.com/unitreerobotics/unitree_rl_gym/tree/main
@@ -76,6 +80,7 @@ ressources/robots/
 ## ⚙️ Installation
 
 ### 1. Clone
+
 SSH example:
 
 ```bash
