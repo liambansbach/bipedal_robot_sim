@@ -34,20 +34,69 @@ class DodoCfg(LeggedRobotCfg):
         episode_length_s = 20.0
         send_timeouts = True
 
-    class terrain(LeggedRobotCfg.terrain):
-        mode = "plane"
-        options = ["plane", "uneven"]
-        probs = [0.5, 0.5]
-        curriculum = False
 
-        class uneven(LeggedRobotCfg.terrain.uneven):
-            horizontal_scale = 0.25
-            vertical_scale = 0.003
-            subterrain_size = (2.0, 2.0)
-            n_subterrains = (16, 16)
-            spawn_flat_radius_sub = 0
-            border_flat = True
-            randomize = True
+    class terrain(LeggedRobotCfg.terrain):
+        # for first stable experiments:
+        # mode = "plane"
+        # mode = "random_uniform_terrain"
+        # mode = "mixed"
+        mode = "mixed"
+
+        curriculum = False
+        #n_subterrains = (5, 5)
+        #subterrain_size = (5.0, 5.0)
+
+        spawn_flat_radius_sub = 0
+        border_flat = False
+
+        name = "dodo_training_terrain"
+
+        class mixed:
+            options = [
+                "flat_terrain",
+                "random_uniform_terrain",
+                "wave_terrain",
+                "pyramid_sloped_terrain",
+                "pyramid_stairs_terrain",
+                "stepping_stones_terrain",
+                "fractal_terrain",
+            ]
+            probs = [0.05, 0.2, 0.2, 0.2, 0.1, 0.2, 0.05]
+
+        # class terrain_kwargs(LeggedRobotCfg.terrain.terrain_kwargs):
+        #     class random_uniform_terrain:
+        #         min_height = -0.015
+        #         max_height = 0.015
+        #         step = 0.003
+        #         downsampled_scale = 0.08
+
+        #     class wave_terrain:
+        #         num_waves = 3.0
+        #         amplitude = 0.02
+
+        #     class pyramid_sloped_terrain:
+        #         slope = 0.08
+
+        #     class discrete_obstacles_terrain:
+        #         max_height = 0.03
+        #         min_size = 0.20
+        #         max_size = 0.60
+        #         num_rects = 14
+
+        #     class pyramid_stairs_terrain:
+        #         step_width = 0.30
+        #         step_height = 0.015
+
+        #     class stepping_stones_terrain:
+        #         stone_size = 0.30
+        #         stone_distance = 0.06
+        #         max_height = 0.025
+        #         platform_size = 0.8
+
+        #     class fractal_terrain:
+        #         levels = 8
+        #         scale = 2.0
+
 
     class commands(LeggedRobotCfg.commands):
         curriculum = False

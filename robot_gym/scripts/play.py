@@ -35,6 +35,7 @@ def play(args):
 
     # disable curriculum for play mode
     env_cfg.terrain.curriculum = False
+    #env_cfg.terrain.mode = "plane"
 
     # noise settings for eval
     env_cfg.noise.add_noise = False

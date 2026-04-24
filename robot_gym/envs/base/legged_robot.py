@@ -2,6 +2,7 @@ from robot_gym import ROBOT_GYM_ROOT_DIR, envs
 from warnings import WarningMessage
 import numpy as np
 import logging
+logging.getLogger("genesis").propagate = False
 
 import torch
 from torch import Tensor
@@ -20,6 +21,7 @@ from robot_gym.envs.base.base_task import BaseTask
 from robot_gym.utils.math import wrap_to_pi
 from robot_gym.utils.helpers import class_to_dict
 from .legged_robot_config import LeggedRobotCfg
+from robot_gym.utils.terrain import build_terrain_spec
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: LeggedRobotCfg, sim_params, sim_device, headless):
@@ -613,72 +615,20 @@ class LeggedRobot(BaseTask):
                              for name in self.reward_scales.keys()}
 
     def _create_ground_plane(self):
-        """ Adds a ground plane to the simulation, sets friction and restitution based on the cfg.
         """
+        Adds the configured terrain to the simulation.
+        All terrain selection and generation logic lives in robot_gym.utils.terrain.
+        """
+        terrain_spec = build_terrain_spec(self.cfg.terrain)
 
-        # Choose terraintype
-        if self.cfg.terrain.mode == "random":
-            terrain_type = np.random.choice(self.cfg.terrain.options, p=self.cfg.terrain.probs)
-        else:
-            terrain_type = self.cfg.terrain.mode
+        self.current_terrain_type = terrain_spec.terrain_type
+        self.terrain_metadata = terrain_spec.metadata
+        self.terrain_subterrain_types = terrain_spec.subterrain_types
 
-        self.current_terrain_type = terrain_type  
-
-        ground_mat = gs.surfaces.Default(color=(0.5, 0.5, 0.5))  # grau
-
-        if terrain_type == "plane":
-            self.ground_floor_entity = self.sim.add_entity(
-                gs.morphs.Plane(),
-                surface=ground_mat,
-            )
-            return
-
-        if terrain_type == "uneven":
-            u = self.cfg.terrain.uneven
-
-            n_x, n_y = u.n_subterrains
-            sub_size_x, sub_size_y = u.subterrain_size
-            c_x, c_y = n_x // 2, n_y // 2
-
-            subterrain_types = []
-            for i in range(n_x):
-                row = []
-                for j in range(n_y):
-                    di = abs(i - c_x)
-                    dj = abs(j - c_y)
-                    if max(di, dj) <= u.spawn_flat_radius_sub:
-                        row.append("flat_terrain")
-                    else:
-                        row.append("random_uniform_terrain")
-                subterrain_types.append(row)
-
-            if u.border_flat:
-                for k in range(n_y):
-                    subterrain_types[0][k] = "flat_terrain"
-                    subterrain_types[n_x - 1][k] = "flat_terrain"
-                for k in range(n_x):
-                    subterrain_types[k][0] = "flat_terrain"
-                    subterrain_types[k][n_y - 1] = "flat_terrain"
-
-            total_x = n_x * sub_size_x
-            total_y = n_y * sub_size_y
-            terrain_pos = (-0.5 * total_x - 0.5 * sub_size_x, -0.5 * total_y - 0.5 * sub_size_y, 0.0)
-
-            self.ground_floor_entity = self.sim.add_entity(
-                gs.morphs.Terrain(
-                    pos=terrain_pos,
-                    n_subterrains=u.n_subterrains,
-                    subterrain_size=u.subterrain_size,
-                    horizontal_scale=u.horizontal_scale,
-                    vertical_scale=u.vertical_scale,
-                    subterrain_types=subterrain_types,
-                    randomize=u.randomize,
-                ),
-                surface=ground_mat,
-            )
-            return
-
-        raise ValueError(f"Unknown terrain type: {terrain_type}")
+        self.ground_floor_entity = self.sim.add_entity(
+            terrain_spec.morph,
+            surface=terrain_spec.surface,
+        )
 
     def _create_envs(self):
         """ Creates environments:

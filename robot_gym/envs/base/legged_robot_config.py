@@ -11,19 +11,103 @@ class LeggedRobotCfg(BaseConfig):
         num_privileged_obs = None 
 
     class terrain:
+        # top-level selection:
+        # "plane"               
+        # "heightfield"        -> use a custom heightfield (e.g. from numPy array); requires setting "heightfield"
+        # "mixed"              -> random tiles inside one terrain
+        # "random"             -> WARNING!! randomly choose one entry from options - preferably use mixed mode to lower simulation overhead
+        # or directly one Genesis terrain type, e.g. "wave_terrain"
         mode = "plane"
-        options = ["plane", "uneven"]
-        probs = [0.5, 0.5]
+
+        # used only when mode == "random" but the list shows all possible terrain types that can manually set as "mode" or be used in the "mixed" mode:
+        options = [
+            "plane",
+            "flat_terrain",
+            "random_uniform_terrain",
+            "pyramid_sloped_terrain",
+            "discrete_obstacles_terrain",
+            "wave_terrain",              
+            "pyramid_stairs_terrain",
+            "stepping_stones_terrain",
+            "fractal_terrain",
+            "mixed",
+        ]
+        probs = [0.25, 0.05, 0.1, 0.15, 0.1, 0.15, 0.15, 0.05, 0.05, 0.0] # If mode == "random", probabilities for selecting each terrain type from options list. Must be same length as options list. Values must be non-negative and will be normalized to sum to 1. If empty, uniform probabilities are assumed.
+
         curriculum = False
 
-        class uneven:
-            horizontal_scale = 0.25
-            vertical_scale = 0.003
-            subterrain_size = (2.0, 2.0)
-            n_subterrains = (16, 16)
-            spawn_flat_radius_sub = 0
-            border_flat = True
-            randomize = False
+        # global geometry
+        n_subterrains = (7, 7) # number should be odd to have a center terrain tile
+        subterrain_size = (4.0, 4.0) # size musst be divisible by horizontal_scale!
+ 
+        # lower horizontal_scale = finer mesh = less low-poly look
+        horizontal_scale = 0.25   # basically the grid size of each tile in meters   0.25 
+        vertical_scale = 0.005    # The height of each step in the subterrain in meters. 0.025
+
+        randomize = False
+        spawn_flat_radius_sub = 0
+        border_flat = False
+
+        # optional manual override; if None -> auto-center
+        pos = None
+
+        # Genesis terrain cache name; None disables caching -> creating complex terrains can be slow on first creation!
+        name = None 
+
+        # only used if mode == "heightfield"
+        heightfield = None
+
+        color = (0.18, 0.18, 0.21)
+
+        class mixed:
+            options = [
+                "flat_terrain",
+                "random_uniform_terrain",
+                "wave_terrain",
+                "pyramid_sloped_terrain",
+                "discrete_obstacles_terrain",
+                "pyramid_stairs_terrain",
+                "stepping_stones_terrain",
+                "fractal_terrain",
+            ]
+            probs = [0.15, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.05] # probabilities for selecting each terrain type for the mixed terrain. Must be same length as options list.
+
+        class terrain_kwargs:
+            class flat_terrain:
+                pass
+
+            class fractal_terrain:
+                levels = 8
+                scale = 3.5
+
+            class random_uniform_terrain:
+                min_height = -0.04
+                max_height = 0.05
+                step = 0.01
+                downsampled_scale = 0.5
+
+            class pyramid_sloped_terrain:
+                slope = 0.25
+
+            class discrete_obstacles_terrain: # TODO not working yet
+                max_height = 0.05
+                min_size = 0.25
+                max_size = 1.0
+                num_rects = 5
+
+            class wave_terrain:
+                num_waves = 2.0
+                amplitude = 0.06
+
+            class pyramid_stairs_terrain:
+                step_width = 0.5
+                step_height = -0.075
+
+            class stepping_stones_terrain:
+                stone_size = 0.5
+                stone_distance = 0.075
+                max_height = 0.04
+                platform_size = 0.0
 
     class commands:
         curriculum = False
