@@ -69,6 +69,8 @@ logs/
 ressources/robots/
 ```
 
+-> The main structure and many design choices are based on this repository: https://github.com/unitreerobotics/unitree_rl_gym/tree/main
+
 ---
 
 ## ⚙️ Installation
@@ -209,10 +211,11 @@ python -m robot_gym.scripts.play --task=dodo
 
 This pipeline is still at an early stage and will be extended from time to time with the following functionalities:
 
-- sim2real (ROS2)
+- two-stage training (Teacher–Student Learning with Privileged Information)
 - domain randomization
 - curriculum learning
 - advanced terrain
+- sim2real (ROS2)
 
 ---
 
