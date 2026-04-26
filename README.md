@@ -39,9 +39,8 @@ https://github.com/user-attachments/assets/1b0dcc8c-5585-444f-bbc5-e64916269f7c
 ## 🔁 Pipeline Overview
 
 - **Train**: Learn policy using PPO in simulation  
-- **Play**: Visualize trained policy  
-- **Sim2Sim**: Transfer to other simulators  
-- **Sim2Real**: Deploy to hardware (future)
+- **Play**: Visualize trained policy
+- **Export**: Export a trained policy in order to deploy it (Sim2Sim or Sim2Real)
 
 ---
 
@@ -158,14 +157,14 @@ Modular reward design:
 - orientation stability
 - base height
 - smoothness penalties
-- Dodo-specific rewards
+- Robot-specific rewards
 - foot swing clearance
 - flat feet
 - torso pitch
-- hip penalties
+- hip penalties (avoid clinching legs together)
 - survival reward
 
-Implemented in DodoEnv
+Implemented in LeggedRobot env and robot specific env (e.g.: DodoEnv)
 
 ### ⚙️ Configuration System
 
