@@ -9,6 +9,7 @@ class LeggedRobotCfg(BaseConfig):
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 15 # episode length in seconds
         num_privileged_obs = None 
+        play_mode = False # For training a policy this should always be False because it skips the reward computation and other overhead. For testing or visualization in "play.py" set play_mode = True to speed up the simulation by skipping reward computation and other training overhead.
 
     class terrain:
         # top-level selection:
@@ -228,6 +229,7 @@ class LeggedRobotCfg(BaseConfig):
         fov = 40 # [degrees]
         show_world_frame = True
         visualize_foot_contacts = False
+        print_debug_velocities = False 
 
         # velocity vectors for debugging:
         visualize_velocity_arrows = False

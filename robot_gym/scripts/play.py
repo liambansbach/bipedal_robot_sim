@@ -29,9 +29,10 @@ def play(args):
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
     # ----------------------------------------------------------------------
-    envs_to_visualize = 3 # define how many parallel envs to visualize (keep it low to reduce fps impact)
+    envs_to_visualize = 1 # define how many parallel envs to visualize (keep it low to reduce fps impact)
 
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, envs_to_visualize)
+    env_cfg.env.play_mode = True # skips reward computation and other training overhead for faster simulation during play mode
 
     # disable curriculum for play mode
     env_cfg.terrain.curriculum = False
@@ -42,7 +43,7 @@ def play(args):
 
     # Domain randomization settings for eval
     env_cfg.domain_rand.randomize_friction = False
-    env_cfg.domain_rand.push_robots = True
+    env_cfg.domain_rand.push_robots = False
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
 
@@ -55,6 +56,7 @@ def play(args):
     env_cfg.viewer.visualize_foot_contacts = False
     env_cfg.viewer.visualize_velocity_arrows = True
     env_cfg.viewer.ref_env = list(range(envs_to_visualize))
+    env_cfg.viewer.print_debug_velocities = False 
 
     # ----------------------------------------------------------------------
     # Prepare environment

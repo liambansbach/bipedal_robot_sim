@@ -117,7 +117,7 @@ class GO2Cfg( LeggedRobotCfg ):
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.25
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 4
+        decimation = 4 
 
     class termination(LeggedRobotCfg.termination):
         base_height_threshold = 0.22

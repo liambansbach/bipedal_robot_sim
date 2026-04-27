@@ -100,10 +100,12 @@ class LeggedRobot(BaseTask):
 
         # compute observations, rewards, resets, ...
         self.check_termination()
-        self.compute_reward()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
-        
+
+        if not getattr(self.cfg.env, "play_mode", False):
+            self.compute_reward()
+
         if self.cfg.domain_rand.push_robots:
             self._push_robots()
 
@@ -209,7 +211,7 @@ class LeggedRobot(BaseTask):
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
 
         # print velocities every 50 steps for debugging during play mode
-        if self.common_step_counter % 5 == 0 and not self.headless:
+        if self.common_step_counter % 5 == 0 and not self.headless and self.cfg.viewer.print_debug_velocities:
             print("---- Step: ", self.common_step_counter, " ----")
             print("commands", self.commands[:, :3])
             print("base lin vel", self.base_lin_vel[0])
@@ -228,11 +230,6 @@ class LeggedRobot(BaseTask):
     def _update_robot_state(self):
         """ Refresh robot state tensors from the simulation
         """
-        # read torque from sim
-        self.torques[:] = self.robot.get_dofs_control_force(
-            dofs_idx_local=self.joint_dof_idx
-        )
-
         # Base-Pos & -Orientation (Quaternions)
         self.base_pos[:] = self.robot.get_pos()
         self.base_quat[:] = self.robot.get_quat()
@@ -244,24 +241,31 @@ class LeggedRobot(BaseTask):
         self.base_lin_vel[:] = transform_by_quat(self.robot.get_vel(), inv_q)
         self.base_ang_vel[:] = transform_by_quat(self.robot.get_ang(), inv_q)
 
-        # feet rotation
-        self.foot_euler[:] = torch.stack(
-            [quat_to_xyz(link.get_quat()) for link in self.ankle_links],
-            dim=1
-        )
-
         # DOF-Pos & -Vel (only Motor-DOFs)
         self.dof_pos[:] = self.robot.get_dofs_position()[..., self.joint_dof_idx]
         self.dof_vel[:] = self.robot.get_dofs_velocity()[..., self.joint_dof_idx]
 
-        # Ankle Heights (Floor-contact-Check)
-        self.current_ankle_heights[:] = torch.stack(
-            [link.get_pos()[:, 2] for link in self.ankle_links],
-            dim=1
-        )
+        # observations, that are only needed for reward computation and not part of the observation space dont need to be updated during play mode -> more fps 
+        if not self.cfg.env.play_mode:
+            # read torque from sim
+            self.torques[:] = self.robot.get_dofs_control_force(
+                dofs_idx_local=self.joint_dof_idx
+            )
 
-        #Real foot-ground contacts
-        self.foot_contacts[:] = self._compute_foot_contacts()
+            # feet rotation
+            self.foot_euler[:] = torch.stack(
+                [quat_to_xyz(link.get_quat()) for link in self.ankle_links],
+                dim=1
+            )
+
+            # Ankle Heights (Floor-contact-Check)
+            self.current_ankle_heights[:] = torch.stack(
+                [link.get_pos()[:, 2] for link in self.ankle_links], 
+                dim=1
+            )
+
+            #Real foot-ground contacts
+            self.foot_contacts[:] = self._compute_foot_contacts()
 
 
     def _compute_foot_contacts(self):
@@ -955,9 +959,6 @@ class LeggedRobot(BaseTask):
     def _reward_base_height(self):
         # Penalize base height away from target
         base_height = self.base_pos[:, 2]
-        # print base height every 100 steps for debugging
-        # if self.common_step_counter % 100 == 0:
-        #     print("base height", base_height[0])
         return torch.square(base_height - self.cfg.rewards.base_height_target)
     
     def _reward_torques(self): 
