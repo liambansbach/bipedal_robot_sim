@@ -29,7 +29,7 @@ def play(args):
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
     # ----------------------------------------------------------------------
-    envs_to_visualize = 1 # define how many parallel envs to visualize (keep it low to reduce fps impact)
+    envs_to_visualize = 3 # define how many parallel envs to visualize (keep it low to reduce fps impact)
 
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, envs_to_visualize)
 

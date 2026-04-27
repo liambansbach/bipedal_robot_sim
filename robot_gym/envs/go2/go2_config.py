@@ -148,8 +148,8 @@ class GO2Cfg( LeggedRobotCfg ):
         randomize_base_mass = False # TODO base mass randomization is not implemented in base class yet
         added_mass_range = [-1., 1.]
         push_robots = True # TODO is implemented but not recommended (it applies torque to the joints instead of pushing the base)
-        push_interval_s = 5
-        max_push_vel_xy = 3.0
+        push_interval_s = 10
+        max_push_vel_xy = 0.5
         randomize_kp = True
         kp_scale_range = [0.8, 1.2]
 
