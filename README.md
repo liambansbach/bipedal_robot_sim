@@ -30,9 +30,11 @@ Following Results were achieved using this setup:
 - NVIDIA GeForce RTX 4070 Ti
 - 4096 Envs, 1500 iterations -> runtime: 1h
 
-https://github.com/user-attachments/assets/f1c91115-6a6f-4f39-b26c-d79e13601c11
-
 https://github.com/user-attachments/assets/1b0dcc8c-5585-444f-bbc5-e64916269f7c
+
+
+https://github.com/user-attachments/assets/db33d93d-37f2-4e5c-aae4-80e8d0ad89b3
+
 
 ---
 
