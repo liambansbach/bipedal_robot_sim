@@ -24,12 +24,12 @@ EXPORT_POLICY = True
 
 
 def play(args):
-    env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
+    env_cfg, train_cfg = task_registry.get_cfgs(name=args.task) 
 
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
     # ----------------------------------------------------------------------
-    envs_to_visualize = 3 # define how many parallel envs to visualize (keep it low to reduce fps impact)
+    envs_to_visualize = 1 # define how many parallel envs to visualize (keep it low to reduce fps impact)
 
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, envs_to_visualize)
 
@@ -46,6 +46,7 @@ def play(args):
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
 
+    # hardcode velocity to test tracking performance in play mode (optional)
     # env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
     # env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
     # env_cfg.commands.ranges.ang_vel_yaw = [0.0, 0.0]
