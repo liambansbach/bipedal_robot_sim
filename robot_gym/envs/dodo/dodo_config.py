@@ -268,15 +268,6 @@ class DodoCfg(LeggedRobotCfg):
             ang_vel = 0.2
             gravity = 0.05
 
-    class viewer(LeggedRobotCfg.viewer):
-        max_fps = 100
-        ref_env = [0]
-        pos = (2.0, 0.0, 2.5)
-        lookat = (0.0, 0.0, 0.5)
-        fov = 40
-        show_world_frame = True
-        visualize_foot_contacts = False
-
     class sim(LeggedRobotCfg.sim):
         dt = 0.01
         substeps = 2
@@ -285,8 +276,6 @@ class DodoCfg(LeggedRobotCfg):
         enable_collision = True
         enable_joint_limit = True
         enable_self_collision = False
-        batch_links_info = False
-        batch_dofs_info = False
 
 
 class DodoCfgPPO(LeggedRobotCfgPPO):

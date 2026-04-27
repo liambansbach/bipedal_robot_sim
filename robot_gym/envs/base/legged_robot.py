@@ -49,6 +49,9 @@ class LeggedRobot(BaseTask):
         self._parse_cfg(self.cfg)
         super().__init__(self.cfg, sim_params, sim_device, headless)
 
+        # check if batching is neccessary for domain randomization
+        self._enable_required_batching_for_domain_rand()
+
         # create sim
         self.create_sim()
 
@@ -204,6 +207,13 @@ class LeggedRobot(BaseTask):
         # add noise if needed
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+
+        # print velocities every 50 steps for debugging during play mode
+        if self.common_step_counter % 5 == 0 and not self.headless:
+            print("---- Step: ", self.common_step_counter, " ----")
+            print("commands", self.commands[:, :3])
+            print("base lin vel", self.base_lin_vel[0])
+            print("base ang vel", self.base_ang_vel[0])
 
         self.extras["observations"]["critic"] = self.obs_buf.clone()
 
@@ -445,27 +455,41 @@ class LeggedRobot(BaseTask):
         Generic version that works for arbitrary robots.
         """
         env_ids = torch.arange(self.num_envs, device=self.device)
+
+        interval_steps = int(self.cfg.domain_rand.push_interval_s / self.dt)
+        interval_steps = max(interval_steps, 1)
+
         push_env_ids = env_ids[
-            self.episode_length_buf[env_ids] % int(self.cfg.domain_rand.push_interval) == 0
+            (self.episode_length_buf[env_ids] > 0)
+            & (self.episode_length_buf[env_ids] % interval_steps == 0)
         ]
 
         if len(push_env_ids) == 0:
             return
 
-        max_push = self.cfg.domain_rand.max_push_vel_xy
+        max_push = float(self.cfg.domain_rand.max_push_vel_xy)
 
-        # generic small pulse, scaled by actuator limits if available
-        if hasattr(self, "torque_limits"):
-            # e.g. 10% of actuator limit scaled by max_push
-            amp = 0.10 * max_push * self.torque_limits.unsqueeze(0)
-            push_torques = (2.0 * torch.rand(len(push_env_ids), self.num_actions, device=self.device) - 1.0) * amp
-            push_torques = torch.clip(push_torques, -self.torque_limits, self.torque_limits)
+        if hasattr(self, "dof_torque_limits"): 
+            torque_limits = self.dof_torque_limits.view(1, -1)  # (1, num_dof)
+            amp = 0.10 * max_push * torque_limits              # (1, num_dof)
+
+            push_torques = (
+                2.0 * torch.rand(
+                    (len(push_env_ids), self.num_actions),
+                    device=self.device,
+                ) - 1.0
+            ) * amp
+
+            push_torques = torch.clip(
+                push_torques,
+                -torque_limits,
+                torque_limits,
+            )
         else:
             torque_scale = 2.0 * max_push
             push_torques = torch.empty(
                 (len(push_env_ids), self.num_actions),
                 device=self.device,
-                dtype=torch.float,
             ).uniform_(-torque_scale, torque_scale)
 
         self.robot.control_dofs_force(
@@ -563,6 +587,9 @@ class LeggedRobot(BaseTask):
         # objects for debug visualization (velocity arrows), one pair per rendered env
         self._cmd_vel_arrows = {}
         self._base_vel_arrows = {}
+
+        # set initial state for the robots
+        self._reset_dofs(torch.arange(self.num_envs, device=self.device))
         
         logging.info(f"Initialized buffers: num_envs={N}, num_dof={D}, num_actions={A}, num_commands={C}")
 
@@ -643,14 +670,22 @@ class LeggedRobot(BaseTask):
         asset_path = self.urdf_reader.robot_file_path_absolute
         asset_file = self.urdf_reader.robot_file_name
 
+        links_to_keep = self.cfg.asset.links_to_keep
+        if links_to_keep is None:
+            links_to_keep = self.cfg.asset.foot_link_names or []
+
         # Add robot entity to the simulation scene
         if self.urdf_reader.robot_file_format == "urdf":
-            self.robot: RigidEntity = self.sim.add_entity(
+            self.robot = self.sim.add_entity(
                 gs.morphs.URDF(
-                    file = str(asset_path),
-                    fixed = False,
-                    pos = self.cfg.init_state.pos,
-                    quat = self.cfg.init_state.rot
+                    file=str(asset_path),
+                    fixed=False,
+                    pos=self.cfg.init_state.pos,
+                    quat=self.cfg.init_state.rot,
+
+                    # important for foot collision links connected via fixed joints
+                    merge_fixed_links=self.cfg.asset.merge_fixed_links,
+                    links_to_keep=list(links_to_keep),
                 ),
                 visualize_contact=self.cfg.viewer.visualize_foot_contacts,
             )
@@ -661,7 +696,11 @@ class LeggedRobot(BaseTask):
                     file = str(asset_path),
                     fixed = False,
                     pos = self.cfg.init_state.pos,
-                    quat = self.cfg.init_state.rot
+                    quat = self.cfg.init_state.rot,
+
+                    # important for foot collision links connected via fixed joints
+                    merge_fixed_links=self.cfg.asset.merge_fixed_links,
+                    links_to_keep=list(links_to_keep),
                 ),
                 visualize_contact=self.cfg.viewer.visualize_foot_contacts,
             )
@@ -678,6 +717,7 @@ class LeggedRobot(BaseTask):
 
         self.cfg.asset.joint_names = list(self.joint_names)
         logging.info(f"Joint names: {self.joint_names}")
+        print(f"Joint names: {self.joint_names}")
 
         #get index of each joint
         self.joint_dof_idx = [self.robot.get_joint(n).dof_start for n in self.joint_names]
@@ -687,15 +727,20 @@ class LeggedRobot(BaseTask):
         self.num_actions = self.num_dof
         
         # get foot link names
-        self.cfg.asset.foot_link_names = self.urdf_reader.foot_link_names
-        logging.info(f"Foot link names: {self.cfg.asset.foot_link_names}")
-        # get foot link indices (for contact calculations)
-        self.ankle_links = [self.robot.get_link(n) for n in self.cfg.asset.foot_link_names]
-        self.foot_link_indices = torch.tensor(
-            [link.idx for link in self.ankle_links],
-            dtype=torch.long,
-            device=self.device,
-        )
+        if not self.cfg.asset.foot_link_names:
+            raise ValueError(
+                "cfg.asset.foot_link_names must be set explicitly, e.g. "
+                "['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']."
+            )
+        else:
+            logging.info(f"Foot link names: {self.cfg.asset.foot_link_names}")
+            self.ankle_links = [self.robot.get_link(n) for n in self.cfg.asset.foot_link_names]
+            # get foot link indices (for contact calculations)
+            self.foot_link_indices = torch.tensor(
+                [link.idx for link in self.ankle_links],
+                dtype=torch.long,
+                device=self.device,
+            )        
 
         # get joint limits
         lower_lim, upper_lim = self.robot.get_dofs_limit(dofs_idx_local=self.joint_dof_idx)
@@ -733,15 +778,20 @@ class LeggedRobot(BaseTask):
         )
 
     def _set_pd_gains(self, env_ids=None, p_gains=None, d_gains=None):
-        """ Setting the PD gains for the robot joints.
-
-            We use this function to set different gains for different environments if needed, e.g. for domain randomization
-            If p_gains or d_gains are not provided, the base gains from the config will be used.
-        """
         if p_gains is None:
             p_gains = self.base_p_gains
         if d_gains is None:
             d_gains = self.base_d_gains
+
+        # If Genesis DOF batching is enabled, gains must be batched.
+        if self.cfg.sim.batch_dofs_info:
+            if env_ids is None:
+                p_gains = p_gains.unsqueeze(0).repeat(self.num_envs, 1)
+                d_gains = d_gains.unsqueeze(0).repeat(self.num_envs, 1)
+            else:
+                n = len(env_ids)
+                p_gains = p_gains.unsqueeze(0).repeat(n, 1)
+                d_gains = d_gains.unsqueeze(0).repeat(n, 1)
 
         self.robot.set_dofs_kp(
             kp=p_gains,
@@ -750,7 +800,7 @@ class LeggedRobot(BaseTask):
         )
         self.robot.set_dofs_kv(
             kv=d_gains,
-            dofs_idx_local=self.joint_dof_idx,
+            dofs_idx_local=self.joint_dof_idx, 
             envs_idx=env_ids,
         )
 
@@ -789,6 +839,26 @@ class LeggedRobot(BaseTask):
             envs_idx=env_ids.detach().cpu().numpy(),
         )
 
+    def _enable_required_batching_for_domain_rand(self):
+        """ In order to randomize PD gains and link properties for multiple environments in parallel, we need to enable batching of DOF and link info in the genesis scene.
+        """
+        dr = self.cfg.domain_rand
+
+        needs_dof_batching = (
+            dr.randomize_kp
+            or dr.randomize_kd
+        )
+
+        needs_link_batching = (
+            dr.randomize_friction
+            or dr.randomize_base_mass
+        )
+
+        if needs_dof_batching:
+            self.cfg.sim.batch_dofs_info = True
+
+        if needs_link_batching:
+            self.cfg.sim.batch_links_info = True
 
     def _parse_cfg(self, cfg):
         self.dt = self.cfg.control.decimation * self.sim_params.dt
@@ -800,7 +870,7 @@ class LeggedRobot(BaseTask):
         self.max_episode_length_s = self.cfg.env.episode_length_s
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)
 
-        self.cfg.domain_rand.push_interval = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
+        self.cfg.domain_rand.push_interval_s = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
 
     def _update_velocity_arrows(self):
         if self.headless:
@@ -879,15 +949,18 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
     
     def _reward_orientation(self):
-        # Penalize non flat base orientation
+        # Penalize non flat base orientation 
         return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
 
     def _reward_base_height(self):
         # Penalize base height away from target
         base_height = self.base_pos[:, 2]
+        # print base height every 100 steps for debugging
+        # if self.common_step_counter % 100 == 0:
+        #     print("base height", base_height[0])
         return torch.square(base_height - self.cfg.rewards.base_height_target)
     
-    def _reward_torques(self):
+    def _reward_torques(self): 
         # Penalize torques
         return torch.sum(torch.square(self.torques), dim=1)
 

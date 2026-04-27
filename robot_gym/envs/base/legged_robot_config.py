@@ -143,9 +143,13 @@ class LeggedRobotCfg(BaseConfig):
         robot_name = None
         file_format = None
 
+        merge_fixed_links = True
+        links_to_keep = None
+
         # following values are automatically set by the URDF reader in "legged_robot.py"!
         joint_names = None
         foot_link_names = None
+        
 
 
     class domain_rand:
@@ -202,7 +206,7 @@ class LeggedRobotCfg(BaseConfig):
             dof_vel = 0.05
             height_measurements = 5.0
         clip_observations = 100.
-        clip_actions = 50.
+        clip_actions = 10.
 
     class noise:
         add_noise = True
@@ -217,7 +221,7 @@ class LeggedRobotCfg(BaseConfig):
 
     # viewer camera:
     class viewer:
-        max_fps = 100
+        max_fps = 60
         ref_env = [0]
         pos = (2.0, 0.0, 2.5) # [m]
         lookat = (0.0, 0.0, 0.5)  # [m]
@@ -238,6 +242,8 @@ class LeggedRobotCfg(BaseConfig):
         enable_collision = True
         enable_joint_limit = True
         enable_self_collision = False
+
+        # dont manually set these! They will automatically set if domain randomization needs it.
         batch_links_info = False
         batch_dofs_info = False
 
