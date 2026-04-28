@@ -115,6 +115,7 @@ Training pipeline:
 - PPO via rsl-rl
 - parallel environments on GPU
 - config-driven setup via TaskRegistry
+  - If you want to train your own robot, simply add your URDF file to "ressources/robots/", create a new config and env file in "robot_gym/envs" and also register the new task in "envs/__init__.py".
 
 ### 👀 Play (Evaluation)
 
