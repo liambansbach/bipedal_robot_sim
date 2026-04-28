@@ -227,10 +227,10 @@ class TaskRegistry:
                 train_cfg_dict["save_interval"] = runner_cfg["save_interval"]
 
         # keep backward-compatible defaults
-        if "empirical_normalization" not in train_cfg_dict:
-            train_cfg_dict["empirical_normalization"] = True
+        if "empirical_normalization" not in train_cfg_dict: 
+            train_cfg_dict["empirical_normalization"] = False
 
-        runner = OnPolicyRunner(
+        runner = OnPolicyRunner( 
             env=env,
             train_cfg=train_cfg_dict,
             log_dir=log_dir,

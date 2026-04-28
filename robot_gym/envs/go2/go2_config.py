@@ -65,8 +65,8 @@ class GO2Cfg( LeggedRobotCfg ):
         resampling_time = 10.0
 
         class ranges(LeggedRobotCfg.commands.ranges):
-            lin_vel_x = [-1.5, 1.5]
-            lin_vel_y = [-0.5, 0.5]
+            lin_vel_x = [-1.0, 1.0]
+            lin_vel_y = [-0.4, 0.4]
             ang_vel_yaw = [-1.0, 1.0]
 
     class control( LeggedRobotCfg.control ):

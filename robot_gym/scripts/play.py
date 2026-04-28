@@ -83,11 +83,11 @@ def play(args):
 
     policy = ppo_runner.get_inference_policy(device=env.device)
 
-    # ----------------------------------------------------------------------
+    # ---------------------------------------------------------------------- 
     # Export policy as JIT
     # ----------------------------------------------------------------------
     if EXPORT_POLICY:
-        path = os.path.join(
+        path = os.path.join( 
             ROBOT_GYM_ROOT_DIR,
             "logs",
             train_cfg.runner.experiment_name,
