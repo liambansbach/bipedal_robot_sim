@@ -47,14 +47,14 @@ def play(args):
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
 
-    # hardcode velocity to test tracking performance in play mode (optional)
-    # env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
+    #hardcode velocity to test tracking performance in play mode (optional)
+    # env_cfg.commands.ranges.lin_vel_x = [0.5, 0.5]
     # env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
     # env_cfg.commands.ranges.ang_vel_yaw = [0.0, 0.0]
     
     # Optional viewer/debug settings for play mode
     env_cfg.viewer.visualize_foot_contacts = False
-    env_cfg.viewer.visualize_velocity_arrows = True
+    env_cfg.viewer.visualize_velocity_arrows = True 
     env_cfg.viewer.ref_env = list(range(envs_to_visualize))
     env_cfg.viewer.print_debug_velocities = False 
 

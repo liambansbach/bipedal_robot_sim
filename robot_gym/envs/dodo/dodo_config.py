@@ -61,7 +61,7 @@ class DodoCfg(LeggedRobotCfg):
                 "stepping_stones_terrain",
                 "fractal_terrain",
             ]
-            probs = [0.05, 0.2, 0.2, 0.2, 0.1, 0.2, 0.05]
+            probs = [0.3, 0.1, 0.1, 0.2, 0.1, 0.1, 0.05]
 
         # class terrain_kwargs(LeggedRobotCfg.terrain.terrain_kwargs):
         #     class random_uniform_terrain:
@@ -115,25 +115,25 @@ class DodoCfg(LeggedRobotCfg):
         # IMPORTANT:
         # Keys must match exact URDF joint names.
         stiffness = {
-            "hip_right": 35.0,
-            "upper_leg_right": 35.0,
-            "lower_leg_right": 12.0,
-            "foot_right": 14.0,
-            "hip_left": 35.0,
-            "upper_leg_left": 35.0,
-            "lower_leg_left": 12.0,
-            "foot_left": 14.0,
+            "hip_right": 23.0,
+            "upper_leg_right": 23.0,
+            "lower_leg_right": 10.0,
+            "foot_right": 12.0,
+            "hip_left": 23.0,
+            "upper_leg_left": 23.0,
+            "lower_leg_left": 10.0,
+            "foot_left": 12.0,
         }
 
         damping = {
-            "hip_right": 0.5 * np.sqrt(35.0),
-            "upper_leg_right": 0.5 * np.sqrt(35.0),
-            "lower_leg_right": 0.5 * np.sqrt(12.0),
-            "foot_right": 0.5 * np.sqrt(14.0),
-            "hip_left": 0.5 * np.sqrt(35.0),
-            "upper_leg_left": 0.5 * np.sqrt(35.0),
-            "lower_leg_left": 0.5 * np.sqrt(12.0),
-            "foot_left": 0.5 * np.sqrt(14.0),
+            "hip_right": 0.12 * np.sqrt(23.0),
+            "upper_leg_right": 0.12 * np.sqrt(23.0),
+            "lower_leg_right": 0.12 * np.sqrt(10.0),
+            "foot_right": 0.12 * np.sqrt(12.0),
+            "hip_left": 0.12 * np.sqrt(23.0),
+            "upper_leg_left": 0.12 * np.sqrt(23.0),
+            "lower_leg_left": 0.12 * np.sqrt(10.0),
+            "foot_left": 0.12 * np.sqrt(12.0),
         }
 
         dof_vel_limits = {
@@ -148,7 +148,7 @@ class DodoCfg(LeggedRobotCfg):
         }
 
         action_scale = 0.25
-        decimation = 2
+        decimation = 4
 
     class asset(LeggedRobotCfg.asset):
         robot_file = "dodo_daimao.urdf"
@@ -174,15 +174,15 @@ class DodoCfg(LeggedRobotCfg):
         randomize_base_mass = False
         added_mass_range = [-1.0, 1.0]
 
-        push_robots = False
-        push_interval_s = 15.0
-        max_push_vel_xy = 1.0
+        push_robots = True
+        push_interval_s = 10.0
+        max_push_vel_xy = 0.5
 
-        randomize_kp = False
-        kp_scale_range = [0.9, 1.1]
+        randomize_kp = True
+        kp_scale_range = [0.8, 1.2]
 
-        randomize_kd = False
-        kd_scale_range = [0.9, 1.1]
+        randomize_kd = True
+        kd_scale_range = [0.8, 1.2]
 
     class rewards(LeggedRobotCfg.rewards):
         only_positive_rewards = True
@@ -212,17 +212,17 @@ class DodoCfg(LeggedRobotCfg):
             # --- general stability penalties from base ---
             lin_vel_z = -0.1
             ang_vel_xy = -0.0
-            orientation = -0.7
+            orientation = -0.5
             base_height = -5.0
 
             # --- smoothness / effort ---
             torques = -0.00001
             dof_vel = -0.0
             dof_acc = -2.5e-7
-            action_rate = -0.005
+            action_rate = -0.01
 
             # --- limits / termination ---
-            termination = -50.0
+            termination = -40.0
             dof_pos_limits = -1.0
             dof_vel_limits = -0.0
             torque_limits = -0.5
@@ -255,7 +255,7 @@ class DodoCfg(LeggedRobotCfg):
             dof_vel = 0.05
 
         clip_observations = 100.0
-        clip_actions = 5.0
+        clip_actions = 10.0
 
     class noise(LeggedRobotCfg.noise):
         add_noise = True
@@ -269,7 +269,7 @@ class DodoCfg(LeggedRobotCfg):
             gravity = 0.05
 
     class sim(LeggedRobotCfg.sim):
-        dt = 0.01
+        dt = 0.005
         substeps = 2
         gravity = (0.0, 0.0, -9.81)
         up_axis = 1
