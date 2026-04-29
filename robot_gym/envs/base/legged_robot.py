@@ -13,8 +13,8 @@ from robot_gym.utils.urdf_reader import URDFReader
 import genesis as gs
 from genesis import Scene
 from genesis.utils.geom import quat_to_xyz, transform_by_quat, inv_quat, transform_quat_by_quat
-from genesis.engine.entities.base_entity import Entity
-from genesis.engine.entities.rigid_entity import RigidEntity
+#from genesis.engine.entities.base_entity import Entity
+#from genesis.engine.entities.rigid_entity import RigidEntity
 
 from robot_gym import ROBOT_GYM_ROOT_DIR
 from robot_gym.envs.base.base_task import BaseTask
@@ -695,7 +695,7 @@ class LeggedRobot(BaseTask):
             )
             logging.info(f"URDF file {asset_file} loaded successfully.")
         elif self.urdf_reader.robot_file_format == "xml":
-            self.robot: RigidEntity = self.sim.add_entity(
+            self.robot = self.sim.add_entity(
                 gs.morphs.MJCF(
                     file = str(asset_path),
                     fixed = False,
