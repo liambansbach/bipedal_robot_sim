@@ -1,5 +1,8 @@
 import os
 import copy
+import yaml
+import numpy as np
+import torch
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Tuple, Type
@@ -153,6 +156,7 @@ class TaskRegistry:
         args=None,
         train_cfg: LeggedRobotCfgPPO | None = None,
         log_root: str | None = "default",
+        save_config: bool = True,
     ) -> Tuple[OnPolicyRunner, LeggedRobotCfgPPO]:
         """ Creates the training algorithm  either from a registered name or from the provided config file.
 
@@ -224,18 +228,8 @@ class TaskRegistry:
         train_cfg_dict.setdefault("torch_compile_mode", None)
         train_cfg_dict["run_name"] = effective_run_name
 
-        runner = OnPolicyRunner( 
-            env=env,
-            train_cfg=train_cfg_dict,
-            log_dir=log_dir,
-            device=args.rl_device,
-        )
+        resume_path = None
 
-        # RSL-RL 5.2.0 does not expose log_dir as public attribute anymore.
-        # We keep it for our own logging purposes
-        runner.log_dir = log_dir 
-
-        # Resume training
         if train_cfg.runner.resume:
             if log_root is None:
                 raise ValueError("Cannot resume when log_root is None.")
@@ -245,10 +239,67 @@ class TaskRegistry:
                 load_run=train_cfg.runner.load_run,
                 checkpoint=train_cfg.runner.checkpoint,
             )
+
+        runner = OnPolicyRunner(
+            env=env,
+            train_cfg=train_cfg_dict,
+            log_dir=log_dir,
+            device=args.rl_device,
+        )
+
+        runner.log_dir = log_dir
+
+        if resume_path is not None: 
             print(f"Loading model from: {resume_path}")
             runner.load(resume_path)
 
+
+        # save config as yaml in log_dir for reproducibility
+        if save_config and log_dir is not None:
+            os.makedirs(log_dir, exist_ok=True)
+
+            full_cfg = {
+                "train_cfg": class_to_dict(train_cfg),
+            }
+
+            if hasattr(env, "cfg"):
+                full_cfg["env_cfg"] = class_to_dict(env.cfg)
+
+            full_cfg = self._make_yaml_safe(full_cfg)
+
+            config_path = os.path.join(log_dir, "config.yaml")
+
+            with open(config_path, "w") as f:
+                yaml.safe_dump(
+                    full_cfg,
+                    f,
+                    sort_keys=False,
+                    default_flow_style=False,
+                    indent=2,
+                )
+
+            print(f"Saved config to: {config_path}")
+
+
         return runner, train_cfg
+    
+    def _make_yaml_safe(self, obj):
+        if isinstance(obj, dict):
+            return {str(k): self._make_yaml_safe(v) for k, v in obj.items()}
+
+        if isinstance(obj, (list, tuple)):
+            return [self._make_yaml_safe(v) for v in obj]
+
+        if isinstance(obj, np.generic):
+            return obj.item()
+
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+
+        if torch.is_tensor(obj):
+            return obj.detach().cpu().tolist()
+
+        return obj
 
 
 #global task registry
