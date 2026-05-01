@@ -25,7 +25,7 @@ EXPORT_POLICY = True
 
 
 def play(args):
-    env_cfg, train_cfg = task_registry.get_cfgs(name=args.task) 
+    env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)  
 
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
@@ -44,9 +44,11 @@ def play(args):
 
     # Domain randomization settings for eval
     env_cfg.domain_rand.randomize_friction = False
-    env_cfg.domain_rand.push_robots = False
+    env_cfg.domain_rand.push_robots = True
     env_cfg.domain_rand.randomize_kp = False
     env_cfg.domain_rand.randomize_kd = False
+    env_cfg.domain_rand.randomize_base_mass = False
+    env_cfg.domain_rand.randomize_com = False
 
     #hardcode velocity to test tracking performance in play mode (optional)
     # env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
@@ -81,6 +83,7 @@ def play(args):
         name=args.task,
         args=args,
         train_cfg=train_cfg,
+        save_config=False, 
     )
 
     policy = ppo_runner.get_inference_policy(device=env.device)

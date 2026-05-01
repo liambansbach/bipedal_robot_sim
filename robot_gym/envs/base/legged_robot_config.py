@@ -153,18 +153,24 @@ class LeggedRobotCfg(BaseConfig):
 
 
     class domain_rand:
-        randomize_friction = False # TODO friction randomization is not implemented in base class yet
-        friction_range = [0.5, 1.25]
-        randomize_base_mass = False # TODO base mass randomization is not implemented in base class yet
-        added_mass_range = [-1., 1.]
-        push_robots = False # TODO is implemented but not recommended (it applies torque to the joints instead of pushing the base)
+        randomize_friction = False
+        friction_range = [0.6, 1.4]
+
+        randomize_base_mass = False
+        added_mass_range = [-0.5, 0.5]
+
+        randomize_com = False
+        com_shift_range = [-0.03, 0.03]
+
+        push_robots = False
         push_interval_s = 15
-        max_push_vel_xy = 1.
+        max_push_vel_xy = 1.0
+
         randomize_kp = False
-        kp_scale_range = [0.9, 1.1]
+        kp_scale_range = [0.8, 1.2]
 
         randomize_kd = False
-        kd_scale_range = [0.9, 1.1]
+        kd_scale_range = [0.8, 1.2]
 
     class rewards:
         class scales:

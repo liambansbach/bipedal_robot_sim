@@ -142,14 +142,20 @@ class GO2Cfg( LeggedRobotCfg ):
         contact_height = 0.025
         hip_abduction_indices = [0, 3, 6, 9]
 
-    class domain_rand:
-        randomize_friction = False # TODO friction randomization is not implemented in base class yet
-        friction_range = [0.5, 1.25]
-        randomize_base_mass = False # TODO base mass randomization is not implemented in base class yet
-        added_mass_range = [-1., 1.]
-        push_robots = True # TODO is implemented but not recommended (it applies torque to the joints instead of pushing the base)
-        push_interval_s = 10
-        max_push_vel_xy = 0.5
+    class domain_rand(LeggedRobotCfg.domain_rand):
+        randomize_friction = True
+        friction_range = [0.5, 1.3]
+
+        randomize_base_mass = True
+        added_mass_range = [-0.3, 0.5]
+
+        randomize_com = True
+        com_shift_range = [-0.03, 0.03]
+
+        push_robots = True
+        push_interval_s = 10.0
+        max_push_vel_xy = 1.0
+
         randomize_kp = True
         kp_scale_range = [0.8, 1.2]
 
@@ -179,13 +185,13 @@ class GO2Cfg( LeggedRobotCfg ):
         class scales(LeggedRobotCfg.rewards.scales):
             # --- tracking ---
             tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.7
+            tracking_ang_vel = 0.8
 
             # --- general stability penalties from base ---
             lin_vel_z = -0.1
             ang_vel_xy = -0.0
             orientation = -0.5
-            base_height = -3.0
+            base_height = -1.0
 
             # --- smoothness / effort ---
             torques = -0.0002
@@ -194,14 +200,14 @@ class GO2Cfg( LeggedRobotCfg ):
             action_rate = -0.01
 
             # --- limits / termination ---
-            termination = -30.0
+            termination = -20.0
             dof_pos_limits = -2.0
             dof_vel_limits = -0.0
-            torque_limits = -0.5
+            torque_limits = -1.0
 
             # --- gait / base rewards ---
             feet_air_time = 0.0
-            stand_still = -4.0
+            stand_still = -5.0
 
             # --- go2-specific rewards from DodoEnv ---
             foot_swing_clearance = 0.3

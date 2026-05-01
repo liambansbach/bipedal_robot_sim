@@ -723,6 +723,9 @@ class LeggedRobot(BaseTask):
 
         # build genesis scene after adding all entities. -> Must be done before acquiring any tensor (e.g. forces, states, etc.)
         self.sim.build(n_envs=self.cfg.env.num_envs)
+
+        # randomize rigid body properties -> Domain randomization
+        self._randomize_rigid_body_properties()
         
         # joint names exactly as they appear in robot file -> from the urdf reader file
         self.joint_names = list(self.urdf_reader.joint_names)
@@ -851,6 +854,69 @@ class LeggedRobot(BaseTask):
             envs_idx=env_ids.detach().cpu().numpy(),
         )
 
+    def _randomize_rigid_body_properties(self):
+        """
+        Randomize link-level physical properties once after scene.build().
+        Genesis expects tensors with shape:
+            friction_ratio: (num_envs, num_links)
+            mass_shift:     (num_envs, num_links)
+            com_shift:      (num_envs, num_links, 3)
+        """
+        dr = self.cfg.domain_rand
+        num_links = self.robot.n_links
+        links_idx_local = range(num_links)
+
+        if dr.randomize_friction:
+            low, high = dr.friction_range
+            friction_ratio = gs_rand_float(
+                low,
+                high,
+                (self.num_envs, num_links),
+                device=self.device,
+            )
+
+            self.robot.set_friction_ratio(
+                friction_ratio=friction_ratio,
+                links_idx_local=links_idx_local,
+            )
+
+        if dr.randomize_base_mass:
+            low, high = dr.added_mass_range
+
+            mass_shift = torch.zeros(
+                (self.num_envs, num_links),
+                device=self.device,
+                dtype=torch.float,
+            )
+
+            # Randomize only base link by default.
+            base_link_idx = 0
+            mass_shift[:, base_link_idx] = gs_rand_float(
+                low,
+                high,
+                (self.num_envs,),
+                device=self.device,
+            )
+
+            self.robot.set_mass_shift(
+                mass_shift=mass_shift,
+                links_idx_local=links_idx_local,
+            )
+
+        if dr.randomize_com:
+            low, high = dr.com_shift_range
+            com_shift = gs_rand_float(
+                low,
+                high,
+                (self.num_envs, num_links, 3),
+                device=self.device,
+            )
+
+            self.robot.set_COM_shift(
+                com_shift=com_shift,
+                links_idx_local=links_idx_local,
+            )
+
     def _enable_required_batching_for_domain_rand(self):
         """ In order to randomize PD gains and link properties for multiple environments in parallel, we need to enable batching of DOF and link info in the genesis scene.
         """
@@ -864,6 +930,7 @@ class LeggedRobot(BaseTask):
         needs_link_batching = (
             dr.randomize_friction
             or dr.randomize_base_mass
+            or dr.randomize_com
         )
 
         if needs_dof_batching:
@@ -974,7 +1041,7 @@ class LeggedRobot(BaseTask):
     def _reward_stand_still(self):
         # Penalize joint motion only for true zero-command standing.
         stand_mask = (
-            torch.norm(self.commands[:, :3], dim=1) < 0.1
+            torch.norm(self.commands[:, :3], dim=1) < 0.1 
         ).float()
 
         pos_err = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
