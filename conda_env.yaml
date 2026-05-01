@@ -156,7 +156,7 @@ dependencies:
       - pyvista==0.46.3
       - requests==2.32.5
       - rich==14.2.0
-      - rsl-rl-lib==2.2.4
+      - rsl-rl-lib==5.2.0
       - rtree==1.4.1
       - scikit-image==0.25.2
       - scipy==1.16.2
