@@ -189,46 +189,40 @@ class TaskRegistry:
         # Apply CLI overrides
         _, train_cfg = update_cfg_from_args(None, train_cfg, args)
 
-        # Logging setup
+        effective_run_name = (
+            train_cfg.runner.run_name
+            if train_cfg.runner.run_name
+            else train_cfg.runner.experiment_name
+        )
+
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        run_folder = f"{effective_run_name}_{timestamp}"
+
         if log_root == "default":
             log_root = os.path.join(
                 ROBOT_GYM_ROOT_DIR,
                 "logs",
                 train_cfg.runner.experiment_name,
             )
-            log_dir = os.path.join(
-                log_root,
-                datetime.now().strftime("%b%d_%H-%M-%S")
-                + "_"
-                + train_cfg.runner.run_name,
-            )
         elif log_root is None:
             log_dir = None
-        else:
-            log_dir = os.path.join(
-                log_root,
-                datetime.now().strftime("%b%d_%H-%M-%S")
-                + "_"
-                + train_cfg.runner.run_name,
-            )
 
-        # Convert config to dict for rsl_rl
+        if log_root is not None:
+            log_dir = os.path.join(log_root, run_folder) 
+
         train_cfg_dict = class_to_dict(train_cfg)
-        
-        # rsl_rl expects several keys on top-level, while our current config
-        # stores them inside runner (Unitree-style).
-        if "runner" in train_cfg_dict:
-            runner_cfg = train_cfg_dict["runner"]
 
-            if "num_steps_per_env" not in train_cfg_dict and "num_steps_per_env" in runner_cfg:
-                train_cfg_dict["num_steps_per_env"] = runner_cfg["num_steps_per_env"]
+        runner_cfg = train_cfg_dict.pop("runner", {})
 
-            if "save_interval" not in train_cfg_dict and "save_interval" in runner_cfg:
-                train_cfg_dict["save_interval"] = runner_cfg["save_interval"]
+        for key, value in runner_cfg.items():
+            train_cfg_dict.setdefault(key, value)
 
-        # keep backward-compatible defaults
-        if "empirical_normalization" not in train_cfg_dict: 
-            train_cfg_dict["empirical_normalization"] = False
+        train_cfg_dict.setdefault("obs_groups", {"actor": ["policy"], "critic": ["policy"]})
+        train_cfg_dict.setdefault("empirical_normalization", True)
+        train_cfg_dict.setdefault("multi_gpu", False)
+        train_cfg_dict.setdefault("logger", "tensorboard")
+        train_cfg_dict.setdefault("torch_compile_mode", None)
+        train_cfg_dict["run_name"] = effective_run_name
 
         runner = OnPolicyRunner( 
             env=env,
@@ -236,6 +230,10 @@ class TaskRegistry:
             log_dir=log_dir,
             device=args.rl_device,
         )
+
+        # RSL-RL 5.2.0 does not expose log_dir as public attribute anymore.
+        # We keep it for our own logging purposes
+        runner.log_dir = log_dir 
 
         # Resume training
         if train_cfg.runner.resume:

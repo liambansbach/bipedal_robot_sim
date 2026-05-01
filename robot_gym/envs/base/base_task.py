@@ -1,5 +1,6 @@
 import torch
 import genesis as gs
+from tensordict import TensorDict
 
 from .legged_robot_config import LeggedRobotCfg
 
@@ -19,7 +20,10 @@ class BaseTask:
 
         # init genesis
         if not BaseTask._gs_initialized:
-            gs.init(backend=backend)
+            gs.init(
+                backend=backend,
+                performance_mode=cfg.sim.performance_mode,
+                )
             BaseTask._gs_initialized = True
             BaseTask._gs_backend = backend
         elif BaseTask._gs_backend != backend:
@@ -59,7 +63,11 @@ class BaseTask:
         self.viewer = None
 
     def get_observations(self):
-        return self.obs_buf, self.extras
+        return TensorDict(
+            {"policy": self.obs_buf},
+            batch_size=[self.num_envs],
+            device=self.device,
+        )
 
     def get_privileged_observations(self):
         return self.privileged_obs_buf
@@ -70,7 +78,9 @@ class BaseTask:
     def reset(self):
         """ Reset all robots"""
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
-        obs, _, _, extras = self.step(torch.zeros(self.num_envs, self.num_actions, device=self.device, requires_grad=False))
+        obs, _, _, extras = self.step( 
+            torch.zeros(self.num_envs, self.num_actions, device=self.device, requires_grad=False)
+        )
         return obs, extras
 
     def step(self, actions):

@@ -1,24 +1,17 @@
-from robot_gym import ROBOT_GYM_ROOT_DIR, envs
-from warnings import WarningMessage
 import numpy as np
 import logging
 logging.getLogger("genesis").propagate = False
 
 import torch
-from torch import Tensor
-from typing import Tuple, Dict
 from robot_gym.utils.math import gs_rand_float
 from robot_gym.utils.urdf_reader import URDFReader
+from robot_gym.utils.debug import VelocityArrowVisualizer
 
 import genesis as gs
 from genesis import Scene
-from genesis.utils.geom import quat_to_xyz, transform_by_quat, inv_quat, transform_quat_by_quat
-#from genesis.engine.entities.base_entity import Entity
-#from genesis.engine.entities.rigid_entity import RigidEntity
+from genesis.utils.geom import quat_to_xyz, transform_by_quat, inv_quat
 
-from robot_gym import ROBOT_GYM_ROOT_DIR
 from robot_gym.envs.base.base_task import BaseTask
-from robot_gym.utils.math import wrap_to_pi
 from robot_gym.utils.helpers import class_to_dict
 from .legged_robot_config import LeggedRobotCfg
 from robot_gym.utils.terrain import build_terrain_spec
@@ -83,7 +76,7 @@ class LeggedRobot(BaseTask):
         if self.privileged_obs_buf is not None:
             self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
             
-        return self.obs_buf, self.rew_buf, self.reset_buf, self.extras
+        return self.get_observations(), self.rew_buf, self.reset_buf, self.extras
 
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
@@ -111,9 +104,15 @@ class LeggedRobot(BaseTask):
 
         self.compute_observations() # in some cases a simulation step might be required to refresh some obs (for example body positions)
 
-        if getattr(self.cfg.viewer, "visualize_velocity_arrows", False):
-            if self.common_step_counter % 1 == 0: # maybe add some throttling here if the visualization causes lag
-                self._update_velocity_arrows() 
+        if self.common_step_counter % 1 == 0: # change this value to reduce the frequency of debug visualization updates (can be performance heavy)
+            self.velocity_arrow_visualizer.update(
+                base_pos=self.base_pos,
+                base_quat=self.base_quat,
+                base_lin_vel=self.base_lin_vel,
+                commands=self.commands,
+                num_envs=self.num_envs,
+                headless=self.headless,
+            )
 
         self.last_actions[:] = self.actions[:]
         self.last_dof_vel[:] = self.dof_vel[:]
@@ -383,7 +382,7 @@ class LeggedRobot(BaseTask):
         self._resample_commands(env_ids)
 
     def _resample_commands(self, env_ids):
-        """ Randommly select commands of some environments
+        """ Randommly select commands of some environments 
 
         Args:
             env_ids (List[int]): Environments ids for which new commands are needed
@@ -393,7 +392,13 @@ class LeggedRobot(BaseTask):
         self.commands[env_ids, 2] = gs_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
 
         # set small commands to zero
-        self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
+        self.commands[env_ids, :2] *= (
+            torch.norm(self.commands[env_ids, :2], dim=1) > 0.1
+        ).unsqueeze(1)
+
+        self.commands[env_ids, 2] *= (
+            torch.abs(self.commands[env_ids, 2]) > 0.1
+        )
 
     def _control_dofs(self, actions):
         """ Compute target from actions.
@@ -585,12 +590,15 @@ class LeggedRobot(BaseTask):
             device=self.device,
         ).unsqueeze(0)
 
+        # initialize velocity vector visualizer for debugging
+        self.velocity_arrow_visualizer = VelocityArrowVisualizer(
+            sim=self.sim,
+            cfg=self.cfg,
+            device=self.device,
+        )
+
         self.p_gains = self.base_p_gains.clone()
         self.d_gains = self.base_d_gains.clone()
-
-        # objects for debug visualization (velocity arrows), one pair per rendered env
-        self._cmd_vel_arrows = {}
-        self._base_vel_arrows = {}
 
         # set initial state for the robots
         self._reset_dofs(torch.arange(self.num_envs, device=self.device))
@@ -872,76 +880,8 @@ class LeggedRobot(BaseTask):
      
 
         self.max_episode_length_s = self.cfg.env.episode_length_s
-        self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)
+        self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt) 
 
-        self.cfg.domain_rand.push_interval_s = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
-
-    def _update_velocity_arrows(self):
-        if self.headless:
-            return
-        if not getattr(self.cfg.viewer, "visualize_velocity_arrows", False):
-            return
-
-        scale = float(getattr(self.cfg.viewer, "velocity_arrow_scale", 0.5))
-        radius = float(getattr(self.cfg.viewer, "velocity_arrow_radius", 0.01))
-
-        ref_envs = getattr(self.cfg.viewer, "ref_env", [0])
-        if ref_envs is None:
-            ref_envs = [0]
-
-        for env_id in ref_envs:
-            # skip invalid env ids safely
-            if env_id < 0 or env_id >= self.num_envs:
-                continue
-
-            base_pos = self.base_pos[env_id].detach().cpu().numpy().copy()
-            base_pos[2] += 0.2
-
-            # commanded planar velocity in body frame
-            cmd_body = self.commands[env_id, :3].detach().cpu().numpy().copy()
-            cmd_vec_body = np.array([cmd_body[0], cmd_body[1], 0.0], dtype=np.float32)
-
-            # actual base linear velocity in body frame
-            vel_body = self.base_lin_vel[env_id].detach().cpu().numpy().copy()
-            vel_vec_body = np.array([vel_body[0], vel_body[1], 0.0], dtype=np.float32)
-
-            quat = self.base_quat[env_id:env_id + 1]
-
-            cmd_vec_world = transform_by_quat(
-                torch.from_numpy(cmd_vec_body).to(self.device).unsqueeze(0),
-                quat
-            )[0].detach().cpu().numpy() * scale
-
-            vel_vec_world = transform_by_quat(
-                torch.from_numpy(vel_vec_body).to(self.device).unsqueeze(0),
-                quat
-            )[0].detach().cpu().numpy() * scale
-
-            # clear old arrows for this env
-            if env_id in self._cmd_vel_arrows and self._cmd_vel_arrows[env_id] is not None:
-                self.sim.clear_debug_object(self._cmd_vel_arrows[env_id])
-                self._cmd_vel_arrows[env_id] = None
-
-            if env_id in self._base_vel_arrows and self._base_vel_arrows[env_id] is not None:
-                self.sim.clear_debug_object(self._base_vel_arrows[env_id])
-                self._base_vel_arrows[env_id] = None
-
-            # draw new arrows for this env
-            # commanded = blue
-            self._cmd_vel_arrows[env_id] = self.sim.draw_debug_arrow(
-                pos=base_pos,
-                vec=cmd_vec_world,
-                radius=radius,
-                color=(0.0, 0.0, 1.0, 0.8),
-            )
-
-            # actual = green
-            self._base_vel_arrows[env_id] = self.sim.draw_debug_arrow(
-                pos=base_pos + np.array([0.0, 0.0, 0.0], dtype=np.float32),
-                vec=vel_vec_world,
-                radius=radius,
-                color=(0.0, 1.0, 0.0, 0.8),
-            )
 
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):
@@ -1027,13 +967,15 @@ class LeggedRobot(BaseTask):
         self.feet_air_time *= (~contact_filt).float()
 
         # update previous contact memory
-        self.prev_foot_contacts[:] = contact
+        self.prev_foot_contacts[:] = contact 
 
         return rew_air_time
-        
+         
     def _reward_stand_still(self):
-        # Reward for standing still (zero velocity commands)
-        stand_mask = (torch.norm(self.commands[:, :2], dim=1) < 0.1).float()
+        # Penalize joint motion only for true zero-command standing.
+        stand_mask = (
+            torch.norm(self.commands[:, :3], dim=1) < 0.1
+        ).float()
 
         pos_err = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
         vel_err = torch.sum(torch.abs(self.dof_vel), dim=1)

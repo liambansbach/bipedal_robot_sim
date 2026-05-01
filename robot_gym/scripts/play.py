@@ -1,8 +1,9 @@
 import os
+import torch
 
 from robot_gym import ROBOT_GYM_ROOT_DIR
 from robot_gym.envs import *  # noqa: F401,F403 -> ensures task registration
-from robot_gym.utils import get_args, export_policy_as_jit, task_registry
+from robot_gym.utils import get_args, task_registry 
 
 """
 Example play command (command line call) with all arguments specified:
@@ -29,13 +30,13 @@ def play(args):
     # ----------------------------------------------------------------------
     # Override some parameters for testing / visualization
     # ----------------------------------------------------------------------
-    envs_to_visualize = 1 # define how many parallel envs to visualize (keep it low to reduce fps impact)
+    envs_to_visualize = 5 # define how many parallel envs to visualize (keep it low to reduce fps impact)
 
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, envs_to_visualize)
-    env_cfg.env.play_mode = True # skips reward computation and other training overhead for faster simulation during play mode
+    env_cfg.env.play_mode = True # skips reward computation and other training overhead for faster simulation during play mode 
 
     # disable curriculum for play mode
-    env_cfg.terrain.curriculum = False
+    env_cfg.terrain.curriculum = False 
     #env_cfg.terrain.mode = "plane"
 
     # noise settings for eval
@@ -48,11 +49,12 @@ def play(args):
     env_cfg.domain_rand.randomize_kd = False
 
     #hardcode velocity to test tracking performance in play mode (optional)
-    # env_cfg.commands.ranges.lin_vel_x = [0.5, 0.5]
+    # env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
     # env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
     # env_cfg.commands.ranges.ang_vel_yaw = [0.0, 0.0]
     
     # Optional viewer/debug settings for play mode
+    env_cfg.sim.performance_mode = False # genesis performance mode should be used for training only.
     env_cfg.viewer.visualize_foot_contacts = False
     env_cfg.viewer.visualize_velocity_arrows = True 
     env_cfg.viewer.ref_env = list(range(envs_to_visualize))
@@ -87,22 +89,28 @@ def play(args):
     # Export policy as JIT
     # ----------------------------------------------------------------------
     if EXPORT_POLICY:
-        path = os.path.join( 
+        path = os.path.join(
             ROBOT_GYM_ROOT_DIR,
             "logs",
             train_cfg.runner.experiment_name,
             "exported",
             "policies",
         )
-        export_policy_as_jit(ppo_runner.alg.actor_critic, path)
+
+        ppo_runner.export_policy_to_jit(
+            path,
+            filename="policy_1.pt",
+        )
+
         print(f"Exported policy as jit script to: {path}")
 
     # ----------------------------------------------------------------------
     # Run policy
     # ----------------------------------------------------------------------
-    for _ in range(10 * int(env.max_episode_length)):
-        actions = policy(obs.detach())
-        obs, rews, dones, infos = env.step(actions.detach())
+    with torch.no_grad():
+        for _ in range(10 * int(env.max_episode_length)):
+            actions = policy(obs)
+            obs, rews, dones, infos = env.step(actions.detach()) 
 
 
 if __name__ == "__main__":

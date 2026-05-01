@@ -1,7 +1,5 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Iterable, Optional
-from enum import Enum
 import xml.etree.ElementTree as ET
 
 from ressources import ROBOTS_DIR

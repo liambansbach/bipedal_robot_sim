@@ -1,25 +1,54 @@
 import inspect
 
+
 class BaseConfig:
     def __init__(self) -> None:
-        """ Initializes all member classes recursively. Ignores all namse starting with '__' (buit-in methods)."""
+        """Initializes all member classes recursively."""
         self.init_member_classes(self)
-    
+
     @staticmethod
     def init_member_classes(obj):
-        # iterate over all attributes names
         for key in dir(obj):
-            # disregard builtin attributes
-            # if key.startswith("__"):
-            if key=="__class__":
+            if key == "__class__":
                 continue
-            # get the corresponding attribute object
-            var =  getattr(obj, key)
-            # check if it the attribute is a class
+
+            var = getattr(obj, key)
+
             if inspect.isclass(var):
-                # instantate the class
                 i_var = var()
-                # set the attribute to the instance instead of the type
                 setattr(obj, key, i_var)
-                # recursively init members of the attribute
                 BaseConfig.init_member_classes(i_var)
+
+    def to_dict(self):
+        return self._recursive_to_dict(self)
+
+    @staticmethod
+    def _recursive_to_dict(obj):
+        if isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+
+        if isinstance(obj, (list, tuple)):
+            return [BaseConfig._recursive_to_dict(x) for x in obj]
+
+        if isinstance(obj, dict):
+            return {
+                key: BaseConfig._recursive_to_dict(value)
+                for key, value in obj.items()
+            }
+
+        if not hasattr(obj, "__dict__"):
+            return obj
+
+        result = {}
+        for key in dir(obj):
+            if key.startswith("_"):
+                continue
+
+            value = getattr(obj, key)
+
+            if inspect.ismethod(value) or inspect.isfunction(value):
+                continue
+
+            result[key] = BaseConfig._recursive_to_dict(value)
+
+        return result

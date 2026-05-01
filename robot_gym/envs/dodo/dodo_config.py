@@ -63,40 +63,6 @@ class DodoCfg(LeggedRobotCfg):
             ]
             probs = [0.3, 0.1, 0.1, 0.2, 0.1, 0.1, 0.05]
 
-        # class terrain_kwargs(LeggedRobotCfg.terrain.terrain_kwargs):
-        #     class random_uniform_terrain:
-        #         min_height = -0.015
-        #         max_height = 0.015
-        #         step = 0.003
-        #         downsampled_scale = 0.08
-
-        #     class wave_terrain:
-        #         num_waves = 3.0
-        #         amplitude = 0.02
-
-        #     class pyramid_sloped_terrain:
-        #         slope = 0.08
-
-        #     class discrete_obstacles_terrain:
-        #         max_height = 0.03
-        #         min_size = 0.20
-        #         max_size = 0.60
-        #         num_rects = 14
-
-        #     class pyramid_stairs_terrain:
-        #         step_width = 0.30
-        #         step_height = 0.015
-
-        #     class stepping_stones_terrain:
-        #         stone_size = 0.30
-        #         stone_distance = 0.06
-        #         max_height = 0.025
-        #         platform_size = 0.8
-
-        #     class fractal_terrain:
-        #         levels = 8
-        #         scale = 2.0
-
 
     class commands(LeggedRobotCfg.commands):
         curriculum = False
@@ -107,33 +73,33 @@ class DodoCfg(LeggedRobotCfg):
         class ranges(LeggedRobotCfg.commands.ranges):
             lin_vel_x = [-0.3, 1.0]
             lin_vel_y = [-0.3, 0.3]
-            ang_vel_yaw = [-0.75, 0.75]
+            ang_vel_yaw = [-1.0, 1.0]
 
     class control(LeggedRobotCfg.control):
-        control_type = "P"
+        control_type = "P" # P = Position control, V = Velocity control, T = Torque control
 
         # IMPORTANT:
         # Keys must match exact URDF joint names.
         stiffness = {
-            "hip_right": 23.0,
-            "upper_leg_right": 23.0,
-            "lower_leg_right": 10.0,
+            "hip_right": 20.0,
+            "upper_leg_right": 20.0,
+            "lower_leg_right": 12.0,
             "foot_right": 12.0,
-            "hip_left": 23.0,
-            "upper_leg_left": 23.0,
-            "lower_leg_left": 10.0,
+            "hip_left": 20.0,
+            "upper_leg_left": 20.0,
+            "lower_leg_left": 12.0,
             "foot_left": 12.0,
         }
 
         damping = {
-            "hip_right": 0.12 * np.sqrt(23.0),
-            "upper_leg_right": 0.12 * np.sqrt(23.0),
-            "lower_leg_right": 0.12 * np.sqrt(10.0),
-            "foot_right": 0.12 * np.sqrt(12.0),
-            "hip_left": 0.12 * np.sqrt(23.0),
-            "upper_leg_left": 0.12 * np.sqrt(23.0),
-            "lower_leg_left": 0.12 * np.sqrt(10.0),
-            "foot_left": 0.12 * np.sqrt(12.0),
+            "hip_right": 0.15 * np.sqrt(20.0),
+            "upper_leg_right": 0.15 * np.sqrt(20.0),
+            "lower_leg_right": 0.15 * np.sqrt(12.0),
+            "foot_right": 0.15 * np.sqrt(12.0),
+            "hip_left": 0.15 * np.sqrt(20.0),
+            "upper_leg_left": 0.15 * np.sqrt(20.0),
+            "lower_leg_left": 0.15 * np.sqrt(12.0),
+            "foot_left": 0.15 * np.sqrt(12.0),
         }
 
         dof_vel_limits = {
@@ -156,15 +122,13 @@ class DodoCfg(LeggedRobotCfg):
         robot_name = "dodo_daimao"
         file_format = "urdf"
 
-        # auto-filled later by URDFReader / LeggedRobot, but useful to keep here
+        # Define foot link names for contact detection and foot clearance reward.
         foot_link_names = ["foot_left", "foot_right"]
 
         # used by DodoEnv
         contact_height = 0.049
 
-        # joint indices in the URDF order used by self.dof_pos / self.default_dof_pos
-        # [hip_right, upper_leg_right, lower_leg_right, foot_right,
-        #  hip_left,  upper_leg_left,  lower_leg_left,  foot_left]
+        # Define the hip abduction joint indices for the hip abduction penalty reward. They have to match the order in the URDF.
         hip_abduction_indices = [0, 4]
 
     class domain_rand(LeggedRobotCfg.domain_rand):
@@ -229,7 +193,7 @@ class DodoCfg(LeggedRobotCfg):
 
             # --- gait / base rewards ---
             feet_air_time = 0.0
-            stand_still = -1.5
+            stand_still = -3.0
 
             # --- dodo-specific rewards from DodoEnv ---
             forward_torso_pitch = 0.2
@@ -281,12 +245,22 @@ class DodoCfg(LeggedRobotCfg):
 class DodoCfgPPO(LeggedRobotCfgPPO):
     seed = 1
 
-    class policy(LeggedRobotCfgPPO.policy):
-        class_name = "ActorCritic"
-        init_noise_std = 0.7
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
+    class actor(LeggedRobotCfgPPO.actor):
+        class_name = "MLPModel"
+        hidden_dims = [512, 256, 128]
         activation = "elu"
+        obs_normalization = True
+        distribution_cfg = {
+            "class_name": "GaussianDistribution",
+            "init_std": 0.7,
+            "std_type": "scalar",
+        }
+
+    class critic(LeggedRobotCfgPPO.critic):
+        class_name = "MLPModel"
+        hidden_dims = [512, 256, 128]
+        activation = "elu"
+        obs_normalization = True
 
     class algorithm(LeggedRobotCfgPPO.algorithm):
         class_name = "PPO"
@@ -304,8 +278,6 @@ class DodoCfgPPO(LeggedRobotCfgPPO):
         max_grad_norm = 1.0
 
     class runner(LeggedRobotCfgPPO.runner):
-        policy_class_name = "ActorCritic"
-        algorithm_class_name = "PPO"
         num_steps_per_env = 48
         max_iterations = 2000
 

@@ -1,5 +1,4 @@
 from .base_config import BaseConfig
-import numpy as np
 
 class LeggedRobotCfg(BaseConfig):
     class env:
@@ -209,9 +208,9 @@ class LeggedRobotCfg(BaseConfig):
         clip_observations = 100.
         clip_actions = 10.
 
-    class noise:
+    class noise:  
         add_noise = True
-        noise_level = 1.0 # scales other values
+        noise_level = 1.0 # scales other values  
         class noise_scales:
             dof_pos = 0.01
             dof_vel = 1.5
@@ -244,6 +243,7 @@ class LeggedRobotCfg(BaseConfig):
         enable_collision = True
         enable_joint_limit = True
         enable_self_collision = False
+        performance_mode = True #  When performance_mode=True, Genesis bakes static tensor shapes into compiled kernels, yielding roughly 30% faster simulation. The trade-off is that kernels must be recompiled whenever the scene changes, which can take several minutes. With performance mode off (the default), kernels are shape-generic and only compiled once — rebuilds take just a few seconds once cached. In short, keep it off during research, fast iteration, debugging, and interactive data inspection; turn it on for policy training and production deployment.
 
         # dont manually set these! They will automatically set if domain randomization needs it.
         batch_links_info = False
@@ -252,17 +252,27 @@ class LeggedRobotCfg(BaseConfig):
 
 class LeggedRobotCfgPPO(BaseConfig):
     seed = 1
-    runner_class_name = 'OnPolicyRunner'
+    runner_class_name = "OnPolicyRunner"
 
-    class policy:
-        class_name = 'ActorCritic'
-        init_noise_std = 1.0
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
-        activation = 'elu'
+    class actor:
+        class_name = "MLPModel"
+        hidden_dims = [512, 256, 128]
+        activation = "elu"
+        obs_normalization = True
+        distribution_cfg = {
+            "class_name": "GaussianDistribution",
+            "init_std": 1.0,
+            "std_type": "scalar",
+        }
+
+    class critic:
+        class_name = "MLPModel"
+        hidden_dims = [512, 256, 128]
+        activation = "elu"
+        obs_normalization = True
 
     class algorithm:
-        class_name = 'PPO'
+        class_name = "PPO"
         value_loss_coef = 1.0
         use_clipped_value_loss = True
         clip_param = 0.2
@@ -270,27 +280,30 @@ class LeggedRobotCfgPPO(BaseConfig):
         num_learning_epochs = 5
         num_mini_batches = 4
         learning_rate = 1.e-3
-        schedule = 'adaptive'
+        schedule = "adaptive"
         gamma = 0.99
         lam = 0.95
         desired_kl = 0.01
-        max_grad_norm = 1.
+        max_grad_norm = 1.0
+        normalize_advantage_per_mini_batch = False
+        rnd_cfg = None
+        symmetry_cfg = None
+        share_cnn_encoders = False
 
     class runner:
-        class_name = 'ActorCritic'
-        algorithm_class_name = 'PPO'
         num_steps_per_env = 24
+        obs_groups = {"actor": ["policy"], "critic": ["policy"]}
+        save_interval = 50
         max_iterations = 1500
 
-        save_interval = 50
-        experiment_name = 'test'
-        run_name = ''
+        logger = "wandb"
+        experiment_name = "test"
+        run_name = ""
 
         resume = False
         load_run = -1
         checkpoint = -1
         resume_path = None
 
-        # wandb logging
         log_wandb = True
         wandb_project = "bipedal-locomotion"

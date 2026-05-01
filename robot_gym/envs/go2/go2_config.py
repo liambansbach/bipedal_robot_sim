@@ -59,8 +59,8 @@ class GO2Cfg( LeggedRobotCfg ):
             probs = [0.05, 0.2, 0.2, 0.2, 0.1, 0.2, 0.05]
 
     class commands(LeggedRobotCfg.commands):
-        curriculum = False
-        max_curriculum = 1.0
+        curriculum = True
+        max_curriculum = 1.5
         num_commands = 3
         resampling_time = 10.0
 
@@ -154,7 +154,7 @@ class GO2Cfg( LeggedRobotCfg ):
         kp_scale_range = [0.8, 1.2]
 
         randomize_kd = True
-        kd_scale_range = [0.8, 1.2]
+        kd_scale_range = [0.8, 1.2] 
 
     class rewards(LeggedRobotCfg.rewards):
         only_positive_rewards = True
@@ -201,7 +201,7 @@ class GO2Cfg( LeggedRobotCfg ):
 
             # --- gait / base rewards ---
             feet_air_time = 0.0
-            stand_still = -2.0
+            stand_still = -4.0
 
             # --- go2-specific rewards from DodoEnv ---
             foot_swing_clearance = 0.3
@@ -215,14 +215,24 @@ class GO2Cfg( LeggedRobotCfg ):
 class GO2CfgPPO(LeggedRobotCfgPPO):
     seed = 1
 
-    class policy(LeggedRobotCfgPPO.policy):
-        class_name = "ActorCritic"
-        init_noise_std = 0.8
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
+    class actor(LeggedRobotCfgPPO.actor):
+        class_name = "MLPModel"
+        hidden_dims = [512, 256, 128]
         activation = "elu"
+        obs_normalization = True
+        distribution_cfg = {
+            "class_name": "GaussianDistribution",
+            "init_std": 0.8,
+            "std_type": "scalar",
+        }
 
-    class algorithm(LeggedRobotCfgPPO.algorithm):
+    class critic(LeggedRobotCfgPPO.critic):
+        class_name = "MLPModel"
+        hidden_dims = [512, 256, 128]
+        activation = "elu"
+        obs_normalization = True
+
+    class algorithm(LeggedRobotCfgPPO.algorithm): 
         class_name = "PPO"
         value_loss_coef = 1.0
         use_clipped_value_loss = True
@@ -238,8 +248,6 @@ class GO2CfgPPO(LeggedRobotCfgPPO):
         max_grad_norm = 1.0
 
     class runner(LeggedRobotCfgPPO.runner):
-        policy_class_name = "ActorCritic"
-        algorithm_class_name = "PPO"
         num_steps_per_env = 48
         max_iterations = 2000
 

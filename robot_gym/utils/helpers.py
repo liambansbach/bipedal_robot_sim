@@ -1,12 +1,8 @@
 import os
-import copy
 import torch
 import numpy as np
 import random
-import genesis as gs
 import argparse
-
-from robot_gym import ROBOT_GYM_ROOT_DIR, ROBOT_GYM_ENVS_DIR
 
 def class_to_dict(obj) -> dict:
     if not  hasattr(obj,"__dict__"):
@@ -47,27 +43,65 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 def get_load_path(root, load_run=-1, checkpoint=-1):
-    try:
-        runs = os.listdir(root)
-        #TODO sort by date to handle change of month
-        runs.sort()
-        if 'exported' in runs: runs.remove('exported')
-        last_run = os.path.join(root, runs[-1])
-    except:
-        raise ValueError("No runs in this directory: " + root)
-    if load_run==-1:
-        load_run = last_run
+    if not os.path.isdir(root):
+        raise ValueError(f"No runs in this directory: {root}")
+
+    # ------------------------------------------------------------------
+    # Select run directory
+    # ------------------------------------------------------------------
+    if load_run == -1:
+        runs = [
+            os.path.join(root, run)
+            for run in os.listdir(root)
+            if run != "exported" and os.path.isdir(os.path.join(root, run)) 
+        ]
+
+        if len(runs) == 0:
+            raise ValueError(f"No runs in this directory: {root}")
+
+        # Robust across month changes: use filesystem modification time
+        runs.sort(key=os.path.getmtime)
+        load_run = runs[-1]
     else:
         load_run = os.path.join(root, load_run)
 
-    if checkpoint==-1:
-        models = [file for file in os.listdir(load_run) if 'model' in file]
-        models.sort(key=lambda m: '{0:0>15}'.format(m))
-        model = models[-1]
+    if not os.path.isdir(load_run):
+        raise ValueError(f"Run directory does not exist: {load_run}")
+
+    # ------------------------------------------------------------------
+    # Select checkpoint
+    # ------------------------------------------------------------------
+    if checkpoint == -1:
+        models = [
+            file
+            for file in os.listdir(load_run)
+            if file.startswith("model") and file.endswith(".pt")
+        ]
+
+        if len(models) == 0:
+            raise ValueError(f"No model checkpoints found in: {load_run}")
+
+        # Prefer model_final.pt if it exists
+        if "model_final.pt" in models:
+            model = "model_final.pt"
+        else:
+            def model_iteration(filename):
+                stem = os.path.splitext(filename)[0]  # model_100 -> model_100
+                try:
+                    return int(stem.split("_")[-1])
+                except ValueError:
+                    return -1
+
+            models.sort(key=model_iteration)
+            model = models[-1]
     else:
-        model = "model_{}.pt".format(checkpoint) 
+        model = f"model_{checkpoint}.pt"
 
     load_path = os.path.join(load_run, model)
+
+    if not os.path.isfile(load_path):
+        raise ValueError(f"Checkpoint does not exist: {load_path}")
+
     return load_path
 
 def update_cfg_from_args(env_cfg, cfg_train, args):
@@ -130,44 +164,3 @@ def get_args():
         args.sim_device_id = 0
 
     return args
-
-def export_policy_as_jit(actor_critic, path):
-    if hasattr(actor_critic, 'memory_a'):
-        # assumes LSTM: TODO add GRU
-        exporter = PolicyExporterLSTM(actor_critic)
-        exporter.export(path)
-    else: 
-        os.makedirs(path, exist_ok=True)
-        path = os.path.join(path, 'policy_1.pt')
-        model = copy.deepcopy(actor_critic.actor).to('cpu')
-        traced_script_module = torch.jit.script(model)
-        traced_script_module.save(path)
-
-
-class PolicyExporterLSTM(torch.nn.Module):
-    def __init__(self, actor_critic):
-        super().__init__()
-        self.actor = copy.deepcopy(actor_critic.actor)
-        self.is_recurrent = actor_critic.is_recurrent
-        self.memory = copy.deepcopy(actor_critic.memory_a.rnn)
-        self.memory.cpu()
-        self.register_buffer(f'hidden_state', torch.zeros(self.memory.num_layers, 1, self.memory.hidden_size))
-        self.register_buffer(f'cell_state', torch.zeros(self.memory.num_layers, 1, self.memory.hidden_size))
-
-    def forward(self, x):
-        out, (h, c) = self.memory(x.unsqueeze(0), (self.hidden_state, self.cell_state))
-        self.hidden_state[:] = h
-        self.cell_state[:] = c
-        return self.actor(out.squeeze(0))
-
-    @torch.jit.export
-    def reset_memory(self):
-        self.hidden_state[:] = 0.
-        self.cell_state[:] = 0.
- 
-    def export(self, path):
-        os.makedirs(path, exist_ok=True)
-        path = os.path.join(path, 'policy_lstm_1.pt')
-        self.to('cpu')
-        traced_script_module = torch.jit.script(self)
-        traced_script_module.save(path)

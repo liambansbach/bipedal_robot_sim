@@ -76,7 +76,7 @@ class Go2Env(LeggedRobot):
         rew_per_foot = torch.exp(
             -torch.square(clearance - target) / (2.0 * sigma**2 + 1e-8)
         ) * swing_mask
-
+ 
         num_swing_feet = swing_mask.sum(dim=1).clamp(min=1.0)
         rew = torch.sum(rew_per_foot, dim=1) / num_swing_feet
 

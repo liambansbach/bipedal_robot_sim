@@ -5,7 +5,6 @@ from .helpers import (
     class_to_dict,
     get_load_path,
     set_seed,
-    export_policy_as_jit,
     update_class_from_dict,
 )
 
