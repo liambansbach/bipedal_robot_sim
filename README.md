@@ -54,6 +54,7 @@ robot_gym/
 ├── envs/
 │ ├── base/
 │ ├── dodo/
+│ ├── go2/
 │
 ├── scripts/
 │ ├── train.py
@@ -62,7 +63,7 @@ robot_gym/
 ├── utils/
 │ ├── task_registry.py
 │ ├── helpers.py
-│ ├── logger.py
+│ ├── debug.py
 │ ├── math.py
 │ ├── terrain.py
 │ ├── urdf_reader.py
@@ -95,10 +96,6 @@ cd bipedal_robot_sim
 conda env create -f conda_env.yaml
 conda activate rl-genesis
 ```
-
-⚠️ Important:
-pip install rsl-rl-lib==2.2.4
--> This version works stable with the pipeline. Others might not work!
 
 ---
 
@@ -135,11 +132,9 @@ Saved automatically to:
 logs/<experiment>/exported/policies/policy_1.pt
 ```
 
-Export uses TorchScript for deployment
-
 ### 🧠 Observations
 
-Typical observation vector (~36D):
+Typical observation vector:
 
 - base linear velocity
 - base angular velocity
@@ -148,8 +143,6 @@ Typical observation vector (~36D):
 - joint positions
 - joint velocities
 - previous actions
-
-Defined in base environment
 
 ### 🎯 Reward System
 
@@ -181,10 +174,7 @@ Configs auto-instantiate recursively
 
 ### 🤖 Automatic Robot Parsing
 
-No manual joint mapping required.
-
 - extracts joint names
-- detects foot links
 - resolves paths automatically
 
 Implemented via URDFReader
@@ -193,11 +183,9 @@ You can easily use your own URDF robot file for training your own locomotion pol
 
 ### 📊 Logging
 
-- Weights & Biases integration
+- Weights & Biases integration OR Tensorboard (as given by RSL-RL)
 - reward breakdown
 - training metrics
-
-Integrated in training script
 
 ---
 
@@ -219,9 +207,8 @@ python -m robot_gym.scripts.play --task=dodo
 This pipeline is still at an early stage and will be extended from time to time with the following functionalities:
 
 - two-stage training (Teacher–Student Learning with Privileged Information)
-- domain randomization
+- further domain randomization
 - curriculum learning
-- advanced terrain
 - sim2real (ROS2)
 
 ---
