@@ -44,14 +44,14 @@ logs/<experiment_name>/<run_name>/
 For example:
 
 ```bash
- logs/dodo_walking_test/pretrained/
+ logs/dodo_walking/pretrained/
 ```
 
  The structure should then be:
 
 ```bash
 logs/
-└── dodo_walking_policy/
+└── dodo_walking/
     └── pretrained/
         ├── model_final.pt
 ```
@@ -61,8 +61,7 @@ logs/
 ```bash
 python -m robot_gym.scripts.play \
     --task dodo \
-    --experiment_name dodo_walking_policy \
-    --load_run pretrained
+    --experiment_name dodo_walking \
 ```
 
 ---
