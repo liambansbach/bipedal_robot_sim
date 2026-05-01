@@ -19,7 +19,7 @@ It is inspired by the structure of Unitree RL pipelines but fully adapted to:
 - 🔁 Supports **Train → Play → Export → Deployment**
 - 📊 Integrated logging via **Weights & Biases**
 - 🌍 Multiple environments (flat + uneven terrain)
-- 🔄 TorchScript (JIT) export for deployment
+- 🔄 TorchScript (JIT) or ONNX export for deployment
 
 ---
 ## Results 👀
@@ -28,12 +28,20 @@ Following Results were achieved using this setup:
 - Intel Core i5-13600K (14 cores, 20 threads)
 - 32 GB RAM (DDR5 - 6000 MT/s)
 - NVIDIA GeForce RTX 4070 Ti
-- 4096 Envs, 1500 iterations -> runtime: 1h
+- 4096 Envs, 1500 iterations -> runtime: 45min
 
-https://github.com/user-attachments/assets/1b0dcc8c-5585-444f-bbc5-e64916269f7c
+Dodo:
+https://github.com/user-attachments/assets/8276639f-ffef-4358-a578-7138b7d5190d
+
+<img width="1658" height="715" alt="image" src="https://github.com/user-attachments/assets/655c3ed9-ef01-461f-8c61-9e362383d8f7" />
+<img width="2469" height="1260" alt="image" src="https://github.com/user-attachments/assets/0e6ed3f3-12a9-408f-8176-a8bbe92f4dab" />
 
 
-https://github.com/user-attachments/assets/db33d93d-37f2-4e5c-aae4-80e8d0ad89b3
+GO2:
+https://github.com/user-attachments/assets/afaef573-847f-4afc-a96d-eb92982bcb41
+
+<img width="1657" height="677" alt="image" src="https://github.com/user-attachments/assets/d4dcaaed-5765-42fa-9461-c76f04ecce89" />
+<img width="2469" height="1258" alt="image" src="https://github.com/user-attachments/assets/2ecb48ee-5110-4de5-927c-b43a35b0307a" />
 
 
 ---
