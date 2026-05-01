@@ -31,6 +31,7 @@ Following Results were achieved using this setup:
 - 4096 Envs, 1500 iterations -> runtime: 45min
 
 Dodo:
+
 https://github.com/user-attachments/assets/8276639f-ffef-4358-a578-7138b7d5190d
 
 <img width="1658" height="715" alt="image" src="https://github.com/user-attachments/assets/655c3ed9-ef01-461f-8c61-9e362383d8f7" />
@@ -38,6 +39,7 @@ https://github.com/user-attachments/assets/8276639f-ffef-4358-a578-7138b7d5190d
 
 
 GO2:
+
 https://github.com/user-attachments/assets/afaef573-847f-4afc-a96d-eb92982bcb41
 
 <img width="1657" height="677" alt="image" src="https://github.com/user-attachments/assets/d4dcaaed-5765-42fa-9461-c76f04ecce89" />
