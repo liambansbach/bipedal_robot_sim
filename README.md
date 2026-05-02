@@ -96,8 +96,8 @@ logs/
 SSH example:
 
 ```bash
-git clone git@github.com:liambansbach/bipedal_robot_sim.git
-cd bipedal_robot_sim
+git clone git@github.com:liambansbach/legged-robot_rl_genesis.git
+cd legged-robot_rl_genesis
 ```
 
 ### 2. Setup environment
